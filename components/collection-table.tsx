@@ -87,8 +87,18 @@ const generateSampleData = (collectionId: string, count = 100) => {
           id: `${collectionId}-${i}`,
           name: `Customer ${i}`,
           email: `customer${i}@example.com`,
-          location: locations[Math.floor(Math.random() * locations.length)],
+          phone: `+1 ${Math.floor(Math.random() * 900 + 100)}-${Math.floor(Math.random() * 900 + 100)}-${Math.floor(Math.random() * 9000 + 1000)}`,
+          address: `${Math.floor(Math.random() * 9999) + 1} ${["Main", "Oak", "Maple", "Cedar", "Pine"][Math.floor(Math.random() * 5)]} ${["St", "Ave", "Rd", "Blvd", "Ln"][Math.floor(Math.random() * 5)]}`,
+          city: locations[Math.floor(Math.random() * locations.length)],
+          state: ["CA", "NY", "TX", "FL", "IL", "WA"][Math.floor(Math.random() * 6)],
+          zipCode: `${Math.floor(Math.random() * 90000) + 10000}`,
+          country: "United States",
           status: statuses[Math.floor(Math.random() * statuses.length)],
+          accountType: ["Basic", "Premium", "Enterprise", "Trial"][Math.floor(Math.random() * 4)],
+          registrationDate: new Date(Date.now() - Math.floor(Math.random() * 31536000000)).toLocaleDateString(),
+          lastPurchase: `$${(Math.random() * 1000).toFixed(2)}`,
+          totalSpent: `$${(Math.random() * 10000).toFixed(2)}`,
+          orderCount: Math.floor(Math.random() * 50),
           lastUpdated: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toLocaleDateString(),
         })
       }
@@ -548,8 +558,8 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
                 {/* Table Container */}
                 <div className="flex-1 flex flex-col min-h-0">
                   {/* Table Scroll Area */}
-                  <div className="flex-1 overflow-y-auto">
-                    <Table>
+                  <div className="flex-1 overflow-auto">
+                    <Table className="min-w-max">
                       <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                           {getTableHeaders().map((header) => (
@@ -583,7 +593,7 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
 
                   {/* Footer */}
                   <div className="border-t bg-background sticky bottom-0 z-10">
-                    <div className="flex items-center justify-between px-2 py-2">
+                    <div className="flex items-center justify-between px-2 py-3">
                       <div className="flex items-center gap-2">
                         <div className="text-xs text-muted-foreground">
                           {filteredData.length > 0
@@ -597,7 +607,7 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
                             setCurrentPage(1)
                           }}
                         >
-                          <SelectTrigger className="h-7 w-[100px]">
+                          <SelectTrigger className="h-8 w-[100px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -613,7 +623,7 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-8 w-8"
                           onClick={() => goToPage(currentPage - 1)}
                           disabled={currentPage === 1}
                         >
@@ -624,7 +634,7 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-8 w-8"
                           onClick={() => goToPage(currentPage + 1)}
                           disabled={currentPage === totalPages || totalPages === 0}
                         >
