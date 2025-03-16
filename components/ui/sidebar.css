@@ -1,0 +1,13 @@
+/* Sidebar submenu styles */
+[data-sidebar="menu-sub-button"] {
+  color: white;
+}
+
+[data-sidebar="menu-sub-button"]:hover {
+  background-color: rgb(31 41 55);
+}
+
+[data-sidebar="menu-sub-button"][data-active="true"] {
+  background-color: rgb(31 41 55);
+}
+
