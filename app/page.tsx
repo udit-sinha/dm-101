@@ -180,198 +180,199 @@ export default function HomePage() {
     <>
       <TopNav title="Home" />
 
-      <div className="flex-1 overflow-auto p-6">
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-6">
-            {/* Favorites Section */}
-            <div>
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="md:col-span-2 space-y-6">
+              {/* Favorites Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold flex items-center">
+                    <Star className="h-5 w-5 mr-2 text-amber-500" />
+                    Favorites
+                  </h2>
+                  <Button variant="ghost" size="sm" className="text-sm">
+                    View All <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {favoritesData.map((item) => (
+                    <Card
+                      key={item.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => navigateTo(getItemPath(item))}
+                    >
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex justify-between items-start">
+                          <div
+                            className={cn(
+                              "w-8 h-8 rounded-md flex items-center justify-center",
+                              getColorClass(item.color),
+                            )}
+                          >
+                            {item.icon}
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Pin className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <h3 className="font-medium truncate">{item.name}</h3>
+                        <div className="flex justify-between items-center mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {item.type}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{item.lastAccessed}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Access Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Quick Access</h2>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-4">
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <div className="bg-primary/10 w-10 h-10 rounded-md flex items-center justify-center mb-2">
+                        <BarChart3 className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle>Dashboards</CardTitle>
+                      <CardDescription>View and analyze your data</CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                      <Button variant="outline" className="w-full" onClick={() => navigateTo("/dashboards")}>
+                        View Dashboards
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <div className="bg-primary/10 w-10 h-10 rounded-md flex items-center justify-center mb-2">
+                        <Database className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle>Data Collections</CardTitle>
+                      <CardDescription>Browse your data collections</CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                      <Button variant="outline" className="w-full" onClick={() => navigateTo("/data-collections")}>
+                        Browse Collections
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <div className="bg-primary/10 w-10 h-10 rounded-md flex items-center justify-center mb-2">
+                        <Layout className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle>Apps</CardTitle>
+                      <CardDescription>Access your applications</CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                      <Button variant="outline" className="w-full" onClick={() => navigateTo("/apps")}>
+                        Open Apps
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <div className="bg-primary/10 w-10 h-10 rounded-md flex items-center justify-center mb-2">
+                        <FolderOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle>File Explorer</CardTitle>
+                      <CardDescription>Browse and manage files</CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                      <Button variant="outline" className="w-full" onClick={() => navigateTo("/file-explorer")}>
+                        Open Explorer
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity Section */}
+            <div className="md:col-span-1">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold flex items-center">
-                  <Star className="h-5 w-5 mr-2 text-amber-500" />
-                  Favorites
+                  <Activity className="h-5 w-5 mr-2 text-blue-500" />
+                  Recent Activity
                 </h2>
                 <Button variant="ghost" size="sm" className="text-sm">
                   View All <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {favoritesData.map((item) => (
-                  <Card
-                    key={item.id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => navigateTo(getItemPath(item))}
-                  >
-                    <CardHeader className="p-4 pb-2">
-                      <div className="flex justify-between items-start">
-                        <div
-                          className={cn(
-                            "w-8 h-8 rounded-md flex items-center justify-center",
-                            getColorClass(item.color),
-                          )}
-                        >
-                          {item.icon}
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Pin className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <h3 className="font-medium truncate">{item.name}</h3>
-                      <div className="flex justify-between items-center mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          {item.type}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">{item.lastAccessed}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Access Section */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Quick Access</h2>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-4">
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="bg-primary/10 w-10 h-10 rounded-md flex items-center justify-center mb-2">
-                      <BarChart3 className="h-5 w-5 text-primary" />
+              <Card>
+                <CardContent className="p-0">
+                  <Tabs defaultValue="all" className="w-full">
+                    <div className="px-4 pt-4">
+                      <TabsList className="w-full">
+                        <TabsTrigger value="all" className="flex-1">
+                          All
+                        </TabsTrigger>
+                        <TabsTrigger value="mentions" className="flex-1">
+                          Mentions
+                        </TabsTrigger>
+                        <TabsTrigger value="updates" className="flex-1">
+                          Updates
+                        </TabsTrigger>
+                      </TabsList>
                     </div>
-                    <CardTitle>Dashboards</CardTitle>
-                    <CardDescription>View and analyze your data</CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                    <Button variant="outline" className="w-full" onClick={() => navigateTo("/dashboards")}>
-                      View Dashboards
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
 
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="bg-primary/10 w-10 h-10 rounded-md flex items-center justify-center mb-2">
-                      <Database className="h-5 w-5 text-primary" />
-                    </div>
-                    <CardTitle>Data Collections</CardTitle>
-                    <CardDescription>Browse your data collections</CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                    <Button variant="outline" className="w-full" onClick={() => navigateTo("/data-collections")}>
-                      Browse Collections
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="bg-primary/10 w-10 h-10 rounded-md flex items-center justify-center mb-2">
-                      <Layout className="h-5 w-5 text-primary" />
-                    </div>
-                    <CardTitle>Apps</CardTitle>
-                    <CardDescription>Access your applications</CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                    <Button variant="outline" className="w-full" onClick={() => navigateTo("/apps")}>
-                      Open Apps
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="bg-primary/10 w-10 h-10 rounded-md flex items-center justify-center mb-2">
-                      <FolderOpen className="h-5 w-5 text-primary" />
-                    </div>
-                    <CardTitle>File Explorer</CardTitle>
-                    <CardDescription>Browse and manage files</CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                    <Button variant="outline" className="w-full" onClick={() => navigateTo("/file-explorer")}>
-                      Open Explorer
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity Section */}
-          <div className="md:col-span-1">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold flex items-center">
-                <Activity className="h-5 w-5 mr-2 text-blue-500" />
-                Recent Activity
-              </h2>
-              <Button variant="ghost" size="sm" className="text-sm">
-                View All <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-
-            <Card>
-              <CardContent className="p-0">
-                <Tabs defaultValue="all" className="w-full">
-                  <div className="px-4 pt-4">
-                    <TabsList className="w-full">
-                      <TabsTrigger value="all" className="flex-1">
-                        All
-                      </TabsTrigger>
-                      <TabsTrigger value="mentions" className="flex-1">
-                        Mentions
-                      </TabsTrigger>
-                      <TabsTrigger value="updates" className="flex-1">
-                        Updates
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-
-                  <TabsContent value="all" className="mt-0">
-                    <div className="divide-y">
-                      {recentActivityData.map((activity) => (
-                        <div key={activity.id} className="p-4 hover:bg-muted/50 cursor-pointer">
-                          <div className="flex gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={activity.userAvatar} alt={activity.user} />
-                              <AvatarFallback>{activity.user.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="space-y-1">
-                              <p className="text-sm">
-                                <span className="font-medium">{activity.user}</span> {activity.description} in{" "}
-                                <span className="font-medium">{activity.item}</span>
-                              </p>
-                              <div className="flex items-center text-xs text-muted-foreground">
-                                <span>{activity.time}</span>
-                                <span className="mx-1">•</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {activity.itemType}
-                                </Badge>
+                    <TabsContent value="all" className="mt-0">
+                      <div className="divide-y">
+                        {recentActivityData.map((activity) => (
+                          <div key={activity.id} className="p-4 hover:bg-muted/50 cursor-pointer">
+                            <div className="flex gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={activity.userAvatar} alt={activity.user} />
+                                <AvatarFallback>{activity.user.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div className="space-y-1">
+                                <p className="text-sm">
+                                  <span className="font-medium">{activity.user}</span> {activity.description} in{" "}
+                                  <span className="font-medium">{activity.item}</span>
+                                </p>
+                                <div className="flex items-center text-xs text-muted-foreground">
+                                  <span>{activity.time}</span>
+                                  <span className="mx-1">•</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {activity.itemType}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
+                        ))}
+                      </div>
+                    </TabsContent>
 
-                  <TabsContent value="mentions" className="mt-0">
-                    <div className="p-8 text-center text-muted-foreground">No mentions to display</div>
-                  </TabsContent>
+                    <TabsContent value="mentions" className="mt-0">
+                      <div className="p-8 text-center text-muted-foreground">No mentions to display</div>
+                    </TabsContent>
 
-                  <TabsContent value="updates" className="mt-0">
-                    <div className="p-8 text-center text-muted-foreground">No updates to display</div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+                    <TabsContent value="updates" className="mt-0">
+                      <div className="p-8 text-center text-muted-foreground">No updates to display</div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>

@@ -135,9 +135,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          {children}
-        </div>
+        {children}
       </SidebarInset>
     </div>
   )

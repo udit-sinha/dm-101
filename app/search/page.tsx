@@ -102,8 +102,8 @@ export default function SearchPage() {
     <>
       <TopNav title="Search" />
 
-      <div className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-4xl px-4 py-6">
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="mx-auto w-full max-w-4xl px-4 py-6 flex-1 overflow-auto">
           <div className="mb-8">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <div className="relative flex-1">

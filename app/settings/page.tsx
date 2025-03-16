@@ -166,10 +166,10 @@ export default function SettingsPage() {
     <>
       <TopNav title="Settings" />
 
-      <div className="flex-1 overflow-hidden">
-        <div className="flex h-full">
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-1">
           {/* Settings Navigation */}
-          <div className="w-64 border-r overflow-auto">
+          <div className="w-64 border-r flex-shrink-0 overflow-auto">
             <div className="py-4">
               {settingsCategories.map((category) => (
                 <button
@@ -190,7 +190,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Settings Content */}
-          <div className="flex-1 overflow-auto p-6">{renderContent()}</div>
+          <div className="flex-1 min-w-0 overflow-auto p-6">{renderContent()}</div>
         </div>
       </div>
     </>

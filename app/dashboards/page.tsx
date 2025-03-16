@@ -92,7 +92,6 @@ const getChartIcon = (type: string) => {
 }
 
 export default function DashboardsPage() {
-  // Remove unnecessary sidebarOpen state that's now managed at the parent level
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [selectedDashboard, setSelectedDashboard] = useState<string | null>(null)
@@ -120,7 +119,6 @@ export default function DashboardsPage() {
   return (
     <>
       {selectedDashboard ? (
-        // Show dashboard when selected
         <>
           <TopNav>
             <div className="flex items-center gap-2">
@@ -132,14 +130,15 @@ export default function DashboardsPage() {
             </div>
           </TopNav>
           
-          <div className="flex-1 overflow-auto p-6">
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              Dashboard content for {getDashboardName(selectedDashboard)} will go here
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-auto p-6">
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                Dashboard content for {getDashboardName(selectedDashboard)} will go here
+              </div>
             </div>
           </div>
         </>
       ) : (
-        // Show dashboard cards when no dashboard is selected
         <>
           <TopNav title="Dashboards">
             <div className="flex items-center gap-2">
@@ -180,100 +179,102 @@ export default function DashboardsPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
-            {filteredDashboards.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No dashboards found</h3>
-                <p className="text-muted-foreground max-w-md">
-                  We couldn't find any dashboards matching your search. Try adjusting your search terms or create a
-                  new dashboard.
-                </p>
-              </div>
-            ) : viewMode === "grid" ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredDashboards.map((dashboard) => (
-                  <Card
-                    key={dashboard.id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => handleSelectDashboard(dashboard.id)}
-                  >
-                    <CardHeader className="pb-2">
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-md flex items-center justify-center mb-2",
-                          getIconBgClass(dashboard.color),
-                        )}
-                      >
-                        {getChartIcon(dashboard.type)}
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-auto p-4">
+              {filteredDashboards.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                  <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No dashboards found</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    We couldn't find any dashboards matching your search. Try adjusting your search terms or create a
+                    new dashboard.
+                  </p>
+                </div>
+              ) : viewMode === "grid" ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredDashboards.map((dashboard) => (
+                    <Card
+                      key={dashboard.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleSelectDashboard(dashboard.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-md flex items-center justify-center mb-2",
+                            getIconBgClass(dashboard.color),
+                          )}
+                        >
+                          {getChartIcon(dashboard.type)}
+                        </div>
+                        <CardTitle>{dashboard.name}</CardTitle>
+                        <CardDescription>{dashboard.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="text-sm text-muted-foreground">
+                        <div className="flex justify-between items-center">
+                          <span>Last updated: {dashboard.lastUpdated}</span>
+                          <Badge variant="outline">{dashboard.type} chart</Badge>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button
+                          variant="ghost"
+                          className="w-full"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSelectDashboard(dashboard.id)
+                          }}
+                        >
+                          View Dashboard
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredDashboards.map((dashboard) => (
+                    <div
+                      key={dashboard.id}
+                      className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer"
+                      onClick={() => handleSelectDashboard(dashboard.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-md flex items-center justify-center",
+                            getIconBgClass(dashboard.color),
+                          )}
+                        >
+                          {getChartIcon(dashboard.type)}
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{dashboard.name}</h3>
+                          <p className="text-sm text-muted-foreground">{dashboard.description}</p>
+                        </div>
                       </div>
-                      <CardTitle>{dashboard.name}</CardTitle>
-                      <CardDescription>{dashboard.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground">
-                      <div className="flex justify-between items-center">
-                        <span>Last updated: {dashboard.lastUpdated}</span>
-                        <Badge variant="outline">{dashboard.type} chart</Badge>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button
-                        variant="ghost"
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleSelectDashboard(dashboard.id)
-                        }}
-                      >
-                        View Dashboard
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredDashboards.map((dashboard) => (
-                  <div
-                    key={dashboard.id}
-                    className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer"
-                    onClick={() => handleSelectDashboard(dashboard.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-md flex items-center justify-center",
-                          getIconBgClass(dashboard.color),
-                        )}
-                      >
-                        {getChartIcon(dashboard.type)}
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{dashboard.name}</h3>
-                        <p className="text-sm text-muted-foreground">{dashboard.description}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <Badge variant="outline">{dashboard.type} chart</Badge>
+                          <p className="text-xs text-muted-foreground mt-1">Updated {dashboard.lastUpdated}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSelectDashboard(dashboard.id)
+                          }}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <Badge variant="outline">{dashboard.type} chart</Badge>
-                        <p className="text-xs text-muted-foreground mt-1">Updated {dashboard.lastUpdated}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleSelectDashboard(dashboard.id)
-                        }}
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}

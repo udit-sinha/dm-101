@@ -132,7 +132,6 @@ export default function AppsPage() {
   return (
     <>
       {selectedApp ? (
-        // Show app when selected
         <>
           <TopNav>
             <div className="flex items-center gap-2">
@@ -144,14 +143,15 @@ export default function AppsPage() {
             </div>
           </TopNav>
           
-          <div className="flex-1 overflow-auto p-6">
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              App content for {getAppName(selectedApp)} will go here
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-auto p-6">
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                App content for {getAppName(selectedApp)} will go here
+              </div>
             </div>
           </div>
         </>
       ) : (
-        // Show app cards when no app is selected
         <>
           <TopNav title="Apps">
             <div className="flex items-center gap-2">
@@ -192,100 +192,102 @@ export default function AppsPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
-            {filteredApps.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <Layout className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No apps found</h3>
-                <p className="text-muted-foreground max-w-md">
-                  We couldn't find any apps matching your search. Try adjusting your search terms or create a new
-                  app.
-                </p>
-              </div>
-            ) : viewMode === "grid" ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredApps.map((app) => (
-                  <Card
-                    key={app.id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => handleSelectApp(app.id)}
-                  >
-                    <CardHeader className="pb-2">
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-md flex items-center justify-center mb-2",
-                          getIconBgClass(app.color),
-                        )}
-                      >
-                        {getAppIcon(app.type)}
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-auto p-4">
+              {filteredApps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                  <Layout className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No apps found</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    We couldn't find any apps matching your search. Try adjusting your search terms or create a new
+                    app.
+                  </p>
+                </div>
+              ) : viewMode === "grid" ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredApps.map((app) => (
+                    <Card
+                      key={app.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleSelectApp(app.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-md flex items-center justify-center mb-2",
+                            getIconBgClass(app.color),
+                          )}
+                        >
+                          {getAppIcon(app.type)}
+                        </div>
+                        <CardTitle>{app.name}</CardTitle>
+                        <CardDescription>{app.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="text-sm text-muted-foreground">
+                        <div className="flex justify-between items-center">
+                          <span>Last updated: {app.lastUpdated}</span>
+                          <Badge variant="outline">{app.type}</Badge>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button
+                          variant="ghost"
+                          className="w-full"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSelectApp(app.id)
+                          }}
+                        >
+                          Open App
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredApps.map((app) => (
+                    <div
+                      key={app.id}
+                      className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer"
+                      onClick={() => handleSelectApp(app.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-md flex items-center justify-center",
+                            getIconBgClass(app.color),
+                          )}
+                        >
+                          {getAppIcon(app.type)}
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{app.name}</h3>
+                          <p className="text-sm text-muted-foreground">{app.description}</p>
+                        </div>
                       </div>
-                      <CardTitle>{app.name}</CardTitle>
-                      <CardDescription>{app.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground">
-                      <div className="flex justify-between items-center">
-                        <span>Last updated: {app.lastUpdated}</span>
-                        <Badge variant="outline">{app.type}</Badge>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button
-                        variant="ghost"
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleSelectApp(app.id)
-                        }}
-                      >
-                        Open App
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredApps.map((app) => (
-                  <div
-                    key={app.id}
-                    className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer"
-                    onClick={() => handleSelectApp(app.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-md flex items-center justify-center",
-                          getIconBgClass(app.color),
-                        )}
-                      >
-                        {getAppIcon(app.type)}
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{app.name}</h3>
-                        <p className="text-sm text-muted-foreground">{app.description}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <Badge variant="outline">{app.type}</Badge>
+                          <p className="text-xs text-muted-foreground mt-1">Updated {app.lastUpdated}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSelectApp(app.id)
+                          }}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <Badge variant="outline">{app.type}</Badge>
-                        <p className="text-xs text-muted-foreground mt-1">Updated {app.lastUpdated}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleSelectApp(app.id)
-                        }}
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}
