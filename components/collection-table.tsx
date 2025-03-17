@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import {
   ChevronLeft,
   ChevronRight,
@@ -338,10 +339,10 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
   }
 
   return (
-    <div className="flex flex-1 overflow-hidden h-[calc(100vh-56px)]">
+    <ResizablePanelGroup direction="horizontal" className="flex flex-1 overflow-hidden h-[calc(100vh-56px)]">
       {/* Filter Panel */}
       {showFilters && (
-        <div className="w-64 border-r flex flex-col h-full">
+        <ResizablePanel defaultSize={20} minSize={15} maxSize={40} className="border-r flex flex-col h-full">
           <div className="p-4 border-b sticky top-0 bg-background z-10">
             <div className="flex items-center justify-between">
               <h3 className="font-medium">Filters</h3>
@@ -488,11 +489,13 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
           <div className="p-4 border-t bg-background sticky bottom-0">
             <Button onClick={applyFilter} className="w-full">Apply Filter</Button>
           </div>
-        </div>
+        </ResizablePanel>
       )}
 
+      {showFilters && <ResizableHandle withHandle />}
+
       {/* Right Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <ResizablePanel defaultSize={80} className="flex flex-col overflow-hidden">
         {/* Tabs Container */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
           <div className="border-b px-2 py-1 bg-background sticky top-0 z-10">
@@ -706,7 +709,7 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
             ))}
           </div>
         </Tabs>
-      </div>
-    </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   )
 }
