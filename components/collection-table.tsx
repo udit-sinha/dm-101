@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { MultiSelect } from "@/components/ui/multi-select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -41,10 +42,6 @@ const datasets = [
   { id: "returns", name: "Returns" },
   { id: "analytics", name: "Analytics" },
 ]
-
-// Mock data for demonstration
-const locations = ["Houston", "Chicago", "New York", "Phoenix", "Los Angeles", "Miami", "Seattle"]
-const statuses = ["Active", "Inactive", "Pending", "Suspended"]
 
 // Filter types and operators
 const filterOperators = {
@@ -78,8 +75,9 @@ const filterOperators = {
 // Generate sample data for a collection
 const generateSampleData = (collectionId: string, count = 100) => {
   const data = []
+  const locations = ["Houston", "Chicago", "New York", "Phoenix", "Los Angeles", "Miami", "Seattle"]
+  const statuses = ["Active", "Inactive", "Pending", "Suspended"]
 
-  // Different schemas based on dataset type
   switch (collectionId) {
     case "customers":
       for (let i = 1; i <= count; i++) {
@@ -115,7 +113,6 @@ const generateSampleData = (collectionId: string, count = 100) => {
         })
       }
       break
-    // [Other cases remain the same...]
     default:
       for (let i = 1; i <= count; i++) {
         data.push({
@@ -135,6 +132,12 @@ type CollectionTableProps = {
   selectedCollection: string | null
 }
 
+type AdvancedFilter = {
+  field: string
+  operator: string
+  value: string
+}
+
 export function CollectionTable({ selectedCollection }: CollectionTableProps) {
   const [data, setData] = useState<any[]>([])
   const [currentPage, setCurrentPage] = useState(1)
@@ -144,9 +147,8 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
   const [advancedMode, setAdvancedMode] = useState(false)
   const [parentFilters, setParentFilters] = useState<any[]>([])
   const [childFilters, setChildFilters] = useState<Record<string, any[]>>({})
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([])
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
-  const [date, setDate] = useState<Date>()
+  const [selectedValues, setSelectedValues] = useState<Record<string, string[]>>({})
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilter[]>([])
   const [activeTab, setActiveTab] = useState("customers")
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const pageSizeOptions = [10, 20, 30, 50, 100]
@@ -155,12 +157,15 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
     setData(generateSampleData(activeTab))
     setCurrentPage(1)
     setSearchQuery("")
+    // Don't reset selectedValues when switching tabs
+    // This allows users to maintain their selections
+    setAdvancedFilters([])
   }, [activeTab])
 
   useEffect(() => {
-    // Apply search filter and other filters
     let filtered = data
 
+    // Apply search query filter
     if (searchQuery) {
       filtered = filtered.filter((item) =>
         Object.values(item).some(
@@ -169,27 +174,65 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
       )
     }
 
-    // Apply location filters
-    if (selectedLocations.length > 0) {
-      filtered = filtered.filter((item) => selectedLocations.includes(item.location))
-    }
+    // Apply parent filters
+    parentFilters.forEach((filter) => {
+      if (Array.isArray(filter.value)) {
+        filtered = filtered.filter((item) => filter.value.includes(item[filter.field]))
+      } else {
+        filtered = filtered.filter((item) => {
+          const itemValue = item[filter.field]?.toString().toLowerCase()
+          const filterValue = filter.value.toString().toLowerCase()
+          
+          switch (filter.operator) {
+            case 'equals':
+              return itemValue === filterValue
+            case 'contains':
+              return itemValue.includes(filterValue)
+            case 'startsWith':
+              return itemValue.startsWith(filterValue)
+            case 'endsWith':
+              return itemValue.endsWith(filterValue)
+            case 'in':
+              return filter.value.includes(item[filter.field])
+            default:
+              return true
+          }
+        })
+      }
+    })
 
-    // Apply status filters
-    if (selectedStatuses.length > 0) {
-      filtered = filtered.filter((item) => selectedStatuses.includes(item.status))
-    }
-
-    // Apply date filter
-    if (date) {
-      filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.lastUpdated)
-        return itemDate >= date
+    // Apply child filters for the current collection
+    if (selectedCollection && childFilters[selectedCollection]) {
+      childFilters[selectedCollection].forEach((filter) => {
+        if (Array.isArray(filter.value)) {
+          filtered = filtered.filter((item) => filter.value.includes(item[filter.field]))
+        } else {
+          filtered = filtered.filter((item) => {
+            const itemValue = item[filter.field]?.toString().toLowerCase()
+            const filterValue = filter.value.toString().toLowerCase()
+            
+            switch (filter.operator) {
+              case 'equals':
+                return itemValue === filterValue
+              case 'contains':
+                return itemValue.includes(filterValue)
+              case 'startsWith':
+                return itemValue.startsWith(filterValue)
+              case 'endsWith':
+                return itemValue.endsWith(filterValue)
+              case 'in':
+                return filter.value.includes(item[filter.field])
+              default:
+                return true
+            }
+          })
+        }
       })
     }
 
     setFilteredData(filtered)
     setCurrentPage(1)
-  }, [searchQuery, data, selectedLocations, selectedStatuses, date])
+  }, [searchQuery, data, parentFilters, childFilters, selectedCollection])
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -202,108 +245,89 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
     }
   }
 
-  // Toggle location selection
-  const toggleLocation = (location: string) => {
-    if (selectedLocations.includes(location)) {
-      setSelectedLocations(selectedLocations.filter((l) => l !== location))
-    } else {
-      setSelectedLocations([...selectedLocations, location])
-    }
-  }
-
-  // Toggle status selection
-  const toggleStatus = (status: string) => {
-    if (selectedStatuses.includes(status)) {
-      setSelectedStatuses(selectedStatuses.filter((s) => s !== status))
-    } else {
-      setSelectedStatuses([...selectedStatuses, status])
-    }
-  }
-
   // Apply filter
   const applyFilter = () => {
-    if (activeTab === "customers") {
-      // Apply as parent filter
-      const newParentFilters = []
+    if (advancedMode) {
+      // Apply advanced filters
+      const validFilters = advancedFilters
+        .filter(filter => filter.operator && filter.value)
+        .map(filter => ({
+          field: filter.field,
+          operator: filter.operator,
+          value: filter.value,
+          label: `${filter.field} ${filter.operator} ${filter.value}`,
+        }))
 
-      if (selectedLocations.length > 0) {
-        newParentFilters.push({
-          field: "location",
+      if (selectedCollection) {
+        setChildFilters({
+          ...childFilters,
+          [selectedCollection]: validFilters,
+        })
+      } else {
+        setParentFilters(validFilters)
+      }
+
+      // Reset advanced filters
+      setAdvancedFilters([])
+    } else {
+      // Apply simple filters
+      const activeFilters = Object.entries(selectedValues)
+        .filter(([_, values]) => values.length > 0)
+        .map(([field, values]) => ({
+          field,
           operator: "in",
-          value: selectedLocations,
-          label: `Location: ${selectedLocations.join(", ")}`,
-        })
+          value: values,
+          label: `${field}: ${values.join(", ")}`,
+        }))
+
+      if (selectedCollection) {
+        // Update child filters while preserving other collections' filters
+        setChildFilters(prev => ({
+          ...prev,
+          [selectedCollection]: activeFilters,
+        }))
+      } else {
+        // Update parent filters
+        setParentFilters(activeFilters)
       }
 
-      if (selectedStatuses.length > 0) {
-        newParentFilters.push({
-          field: "status",
-          operator: "in",
-          value: selectedStatuses,
-          label: `Status: ${selectedStatuses.join(", ")}`,
-        })
-      }
-
-      if (date) {
-        newParentFilters.push({
-          field: "date",
-          operator: "after",
-          value: date,
-          label: `Date after: ${format(date, "PP")}`,
-        })
-      }
-
-      setParentFilters(newParentFilters)
-    } else if (selectedCollection) {
-      // Apply as child filter
-      const newChildFilters = { ...childFilters }
-      const tabFilters = []
-
-      if (selectedLocations.length > 0) {
-        tabFilters.push({
-          field: "location",
-          operator: "in",
-          value: selectedLocations,
-          label: `Location: ${selectedLocations.join(", ")}`,
-        })
-      }
-
-      if (selectedStatuses.length > 0) {
-        tabFilters.push({
-          field: "status",
-          operator: "in",
-          value: selectedStatuses,
-          label: `Status: ${selectedStatuses.join(", ")}`,
-        })
-      }
-
-      if (date) {
-        tabFilters.push({
-          field: "date",
-          operator: "after",
-          value: date,
-          label: `Date after: ${format(date, "PP")}`,
-        })
-      }
-
-      newChildFilters[selectedCollection] = tabFilters
-      setChildFilters(newChildFilters)
+      // Keep selected values state to maintain multi-select state
+      // The filters will be shown as chips but the dropdowns stay interactive
     }
-
-    // Reset selections after applying
-    setSelectedLocations([])
-    setSelectedStatuses([])
-    setDate(undefined)
   }
 
   // Remove filter
   const removeFilter = (isParent: boolean, index: number, collectionId?: string) => {
     if (isParent) {
+      const filterToRemove = parentFilters[index]
       setParentFilters(parentFilters.filter((_, i) => i !== index))
+      
+      // Clear the corresponding selectedValues
+      if (filterToRemove.operator === "in") {
+        setSelectedValues(prev => {
+          const next = { ...prev }
+          delete next[filterToRemove.field]
+          return next
+        })
+      }
     } else if (collectionId) {
-      const newChildFilters = { ...childFilters }
-      newChildFilters[collectionId] = childFilters[collectionId].filter((_, i) => i !== index)
-      setChildFilters(newChildFilters)
+      const filterToRemove = childFilters[collectionId][index]
+      
+      // Update child filters
+      setChildFilters(prev => {
+        const next = { ...prev }
+        next[collectionId] = prev[collectionId].filter((_, i) => i !== index)
+        return next
+      })
+      
+      // Clear the corresponding selectedValues if it's a multi-select filter
+      if (filterToRemove.operator === "in") {
+        setSelectedValues(prev => {
+          const next = { ...prev }
+          delete next[filterToRemove.field]
+          return next
+        })
+      }
     }
   }
 
@@ -323,7 +347,16 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
               <h3 className="font-medium">Filters</h3>
               <div className="flex items-center gap-2">
                 <Label htmlFor="advanced-mode" className="text-xs">Advanced</Label>
-                <Switch id="advanced-mode" checked={advancedMode} onCheckedChange={setAdvancedMode} />
+                <Switch 
+                  id="advanced-mode" 
+                  checked={advancedMode} 
+                  onCheckedChange={(checked) => {
+                    setAdvancedMode(checked)
+                    // Clear selected values when switching modes
+                    setSelectedValues({})
+                    setAdvancedFilters([])
+                  }} 
+                />
               </div>
             </div>
           </div>
@@ -331,67 +364,53 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 space-y-4">
               {!advancedMode ? (
-                // Simple filter mode
+                // Simple filter mode - show only string fields with multi-select dropdowns
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Location</Label>
-                    <div className="border rounded-md p-2 max-h-40 overflow-y-auto">
-                      {locations.map((location) => (
-                        <div key={location} className="flex items-center space-x-2 py-1">
-                          <Checkbox
-                            id={`location-${location}`}
-                            checked={selectedLocations.includes(location)}
-                            onCheckedChange={() => toggleLocation(location)}
-                          />
-                          <Label htmlFor={`location-${location}`} className="text-sm font-normal cursor-pointer">
-                            {location}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  {getTableHeaders()
+                    .filter(header => {
+                      const firstItem = currentItems[0]
+                      return firstItem && typeof firstItem[header] === 'string' &&
+                             !firstItem[header].match(/^\d/) // Exclude if starts with number (likely not a category)
+                    })
+                    .map(header => {
+                      // Get unique values for this field
+                      const uniqueValues = Array.from(new Set(
+                        currentItems.map(item => item[header])
+                      )).filter(Boolean) // Remove null/undefined values
 
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <div className="border rounded-md p-2 max-h-40 overflow-y-auto">
-                      {statuses.map((status) => (
-                        <div key={status} className="flex items-center space-x-2 py-1">
-                          <Checkbox
-                            id={`status-${status}`}
-                            checked={selectedStatuses.includes(status)}
-                            onCheckedChange={() => toggleStatus(status)}
+                      return (
+                        <div key={header} className="space-y-2">
+                          <Label>{header.charAt(0).toUpperCase() + header.slice(1)}</Label>
+                          <MultiSelect
+                            values={selectedValues[header] || []}
+                            options={uniqueValues}
+                            placeholder="Select"
+                            onChange={(values) => {
+                              setSelectedValues(prev => ({
+                                ...prev,
+                                [header]: values
+                              }))
+                            }}
                           />
-                          <Label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer">
-                            {status}
-                          </Label>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          {date ? format(date, "PPP") : "Pick a date"}
-                          <ChevronDown className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                      )
+                    })
+                  }
                 </div>
               ) : (
-                // Advanced filter mode
+                // Advanced filter mode - always show attribute selection and list of filters
                 <div className="space-y-4">
+                  {/* Attribute Selection */}
                   <div className="space-y-2">
-                    <Label>Field</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select field" />
+                    <Label>Add Attribute</Label>
+                    <Select
+                      value=""
+                      onValueChange={(value) => {
+                        setAdvancedFilters([...advancedFilters, { field: value, operator: "", value: "" }])
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
                         {getTableHeaders().map((header) => (
@@ -403,26 +422,64 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Operator</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select operator" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filterOperators.string.map((op) => (
-                          <SelectItem key={op.id} value={op.id}>
-                            {op.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Value</Label>
-                    <Input placeholder="Enter value" />
-                  </div>
+                  {/* Selected Attributes */}
+                  {advancedFilters.map((filter, index) => (
+                    <div key={index} className="space-y-4 border rounded-md p-4 relative">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium">
+                          {filter.field.charAt(0).toUpperCase() + filter.field.slice(1)}
+                        </Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newFilters = [...advancedFilters]
+                            newFilters.splice(index, 1)
+                            setAdvancedFilters(newFilters)
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Operator</Label>
+                          <Select
+                            value={filter.operator}
+                            onValueChange={(value) => {
+                              const newFilters = [...advancedFilters]
+                              newFilters[index] = { ...filter, operator: value }
+                              setAdvancedFilters(newFilters)
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filterOperators.string.map((op) => (
+                                <SelectItem key={op.id} value={op.id}>
+                                  {op.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Value</Label>
+                          <Input
+                            placeholder="Enter value"
+                            value={filter.value}
+                            onChange={(e) => {
+                              const newFilters = [...advancedFilters]
+                              newFilters[index] = { ...filter, value: e.target.value }
+                              setAdvancedFilters(newFilters)
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
