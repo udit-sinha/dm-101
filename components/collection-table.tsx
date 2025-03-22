@@ -16,6 +16,9 @@ import {
   Eye,
   Download,
   Share,
+  SlidersHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -561,15 +564,27 @@ export function CollectionTable({ selectedCollection }: CollectionTableProps) {
                   {/* Actions Section */}
                   <div className="flex items-center justify-between">
                     <div className="flex-grow flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowFilters(!showFilters)}
-                        className="flex items-center gap-1"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Filter
-                      </Button>
+                      {showFilters ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowFilters(false)}
+                          className="flex items-center gap-1"
+                        >
+                          <PanelLeftClose className="h-4 w-4" />
+                          Hide Filters
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowFilters(true)}
+                          className="flex items-center gap-1"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Filter
+                        </Button>
+                      )}
                     </div>
 
                     {/* Actions Section */}
