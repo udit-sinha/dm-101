@@ -10,9 +10,10 @@ import { cn } from "@/lib/utils"
 interface TopNavProps {
   title?: string
   children?: ReactNode
+  showSearch?: boolean
 }
 
-export function TopNav({ title, children }: TopNavProps) {
+export function TopNav({ title, children, showSearch = false }: TopNavProps) {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const router = useRouter()
@@ -71,39 +72,31 @@ export function TopNav({ title, children }: TopNavProps) {
           isSearchExpanded ? "flex-1 justify-center" : "gap-2",
         )}
       >
-        {isMobile ? (
-          <>
-            {isSearchExpanded ? (
-              <div className="flex w-full items-center">
-                <SearchBar expanded={true} onToggleExpand={toggleSearch} className="flex-1" />
-                <Button variant="ghost" size="icon" className="ml-2" onClick={toggleSearch}>
-                  <X className="h-5 w-5" />
+        {showSearch && (
+          isMobile ? (
+            <>
+              {isSearchExpanded ? (
+                <div className="flex w-full items-center">
+                  <SearchBar expanded={true} onToggleExpand={toggleSearch} className="flex-1" />
+                  <Button variant="ghost" size="icon" className="ml-2" onClick={toggleSearch}>
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="ghost" size="icon" onClick={toggleSearch}>
+                  <Search className="h-5 w-5" />
                 </Button>
-              </div>
-            ) : (
-              <Button variant="ghost" size="icon" onClick={toggleSearch}>
-                <Search className="h-5 w-5" />
-              </Button>
-            )}
-          </>
-        ) : (
-          <SearchBar
-            expanded={isSearchExpanded}
-            onToggleExpand={toggleSearch}
-            className={isSearchExpanded ? "flex-1 max-w-2xl" : ""}
-          />
+              )}
+            </>
+          ) : (
+            <SearchBar
+              expanded={isSearchExpanded}
+              onToggleExpand={toggleSearch}
+              className={isSearchExpanded ? "flex-1 max-w-2xl" : ""}
+            />
+          )
         )}
 
-        {!isSearchExpanded && (
-          <>
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <User className="h-5 w-5" />
-            </Button>
-          </>
-        )}
       </div>
     </div>
   )

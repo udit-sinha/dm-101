@@ -164,7 +164,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <TopNav title="Settings" />
+      <TopNav title="Settings" showSearch={false} />
 
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex flex-1">

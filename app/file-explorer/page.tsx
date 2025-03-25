@@ -48,7 +48,7 @@ export default function FileExplorerPage() {
         />
       ) : (
         <>
-          <TopNav title="File Explorer" />
+          <TopNav title="File Explorer" showSearch={false} />
 
           <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b bg-background px-4">
             <Tabs

@@ -139,7 +139,7 @@ export default function DataCollectionsPage() {
     <>
       {selectedCollection ? (
         <>
-          <TopNav>
+          <TopNav showSearch={false}>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => setSelectedCollection(null)} className="mr-2">
                 <ArrowRight className="h-4 w-4 rotate-180 mr-1" />
@@ -157,7 +157,7 @@ export default function DataCollectionsPage() {
         </>
       ) : (
         <>
-          <TopNav title="Data Collections">
+          <TopNav title="Data Collections" showSearch={false}>
             <div className="flex items-center gap-2">
               <Button size="sm" className="gap-1">
                 <Plus className="h-4 w-4" />
