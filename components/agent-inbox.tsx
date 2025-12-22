@@ -1,11 +1,12 @@
 "use client"
 
-import { Search, Inbox, GripVertical, Filter, ChevronDown, ChevronRight, Settings } from "lucide-react"
+import { Search, Inbox, GripVertical, Filter, ChevronDown, ChevronRight, Settings, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 const inboxItems = [
   {
@@ -170,6 +171,7 @@ export function AgentInbox() {
   const [isResizing, setIsResizing] = useState(false)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -208,13 +210,24 @@ export function AgentInbox() {
             <Inbox className="h-5 w-5 text-muted-foreground" />
             <h2 className="font-semibold text-lg text-foreground">Agent Inbox</h2>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Filter className="h-4 w-4 text-muted-foreground" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-sm"
+            onClick={() => router.push("/search")}
+          >
+            <Plus className="h-4 w-4" />
+            New Conversation
           </Button>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search inbox..." className="pl-9 bg-transparent border-muted-foreground/20" />
+        <div className="relative flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search inbox..." className="pl-9 bg-transparent border-muted-foreground/20" />
+          </div>
+          <Button variant="ghost" size="icon" className="h-10 w-10">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+          </Button>
         </div>
       </div>
 
