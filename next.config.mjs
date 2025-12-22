@@ -21,7 +21,6 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
     optimizeServerReact: true,
-    optimizeCss: true,
   },
 }
 
