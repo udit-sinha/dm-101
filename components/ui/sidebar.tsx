@@ -78,22 +78,23 @@ export function Sidebar({ children, className, collapsible }: SidebarProps) {
   const { open } = useSidebar()
   // Use a ref to prevent layout shifts during navigation
   const sidebarRef = useRef<HTMLElement>(null)
-  
+  const [isAnimating, setIsAnimating] = useState(false)
+
   // Prevent layout animations when navigating between pages
   useEffect(() => {
     const sidebar = sidebarRef.current
     if (!sidebar) return
-    
+
     // This effect runs only once on mount
     // Setting the transition to none initially, then enabling it after a timeout
     // This prevents the width animation on first render which can cause flickering
     sidebar.style.transition = "none"
-    
+
     // Enable transitions after a small delay to avoid first-render animations
     const transitionTimeout = setTimeout(() => {
-      if (sidebar) sidebar.style.transition = "width 0.2s ease-in-out"
+      if (sidebar) sidebar.style.transition = "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
     }, 100)
-    
+
     return () => {
       clearTimeout(transitionTimeout)
     }
@@ -103,14 +104,13 @@ export function Sidebar({ children, className, collapsible }: SidebarProps) {
     <aside
       ref={sidebarRef}
       className={cn(
-        "group relative flex h-full min-h-screen flex-col border-r shadow-md",
-        // Remove transition-all to prevent animation conflicts
-        open ? "w-64" : "w-16", 
+        "group relative flex h-full min-h-screen flex-col border-r shadow-md overflow-hidden",
+        open ? "w-64" : "w-16",
         className,
       )}
       data-sidebar="root"
       data-state={open ? "open" : "closed"}
-      style={{ transition: "width 0.2s ease-in-out" }}
+      style={{ transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}
     >
       {children}
     </aside>
@@ -222,6 +222,28 @@ export const SidebarMenuButton = forwardRef<HTMLButtonElement, SidebarMenuButton
   }
 )
 SidebarMenuButton.displayName = "SidebarMenuButton"
+
+type SidebarLabelProps = {
+  children: ReactNode
+  className?: string
+}
+
+export function SidebarLabel({ children, className }: SidebarLabelProps) {
+  const { open } = useSidebar()
+  return (
+    <span
+      className={cn(
+        "whitespace-nowrap transition-all duration-300 ease-in-out",
+        open
+          ? "opacity-100 translate-x-0 w-auto"
+          : "opacity-0 -translate-x-2 w-0 overflow-hidden",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  )
+}
 
 type SidebarMenuSubProps = {
   children: ReactNode

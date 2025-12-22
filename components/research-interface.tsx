@@ -123,7 +123,7 @@ export function ResearchInterface() {
       {/* Header - only show when there are messages */}
       {messages.length > 0 && (
         <div className="px-6 py-3 border-b shrink-0">
-          <h1 className="text-sm text-muted-foreground">Research Assistant</h1>
+          <h1 className="text-sm text-muted-foreground">How can I help you today?</h1>
         </div>
       )}
 

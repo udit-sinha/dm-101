@@ -1,5 +1,5 @@
 "use client"
-import { Settings, FolderTree, Home, PanelLeft, BarChart3, Database, Layout, FolderOpen, Search } from "lucide-react"
+import { Settings, FolderTree, Home, PanelLeft, BarChart3, Database, Layout, FolderOpen, Bot } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -9,6 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarInset,
+  SidebarLabel,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useCallback } from "react"
@@ -21,7 +22,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ children }: AppSidebarProps) {
-  const { toggleSidebar, open } = useSidebar()
+  const { toggleSidebar } = useSidebar()
   const pathname = usePathname()
   const router = useRouter()
   
@@ -50,8 +51,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 className="gap-3 font-medium text-white hover:bg-gray-800 hover:text-white"
                 onClick={() => handleNavigation("/")}
               >
-                <FolderTree className="h-5 w-5 text-white" />
-                {open && <span className="text-white">Data Explorer</span>}
+                <FolderTree className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Data Explorer</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -63,8 +64,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 className={`hover:bg-gray-800 group ${isActive("/") && pathname === "/" ? "bg-gray-800" : ""}`}
                 onClick={() => handleNavigation("/")}
               >
-                <Home className="h-5 w-5 text-white" />
-                {open && <span className="text-white">Home</span>}
+                <Home className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Home</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -72,8 +73,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 className={`hover:bg-gray-800 group ${isActive("/search") ? "bg-gray-800" : ""}`}
                 onClick={() => handleNavigation("/search")}
               >
-                <Search className="h-5 w-5 text-white" />
-                {open && <span className="text-white">Search</span>}
+                <Bot className="h-6 w-6 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Search</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -81,8 +82,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 className={`hover:bg-gray-800 group ${isActive("/dashboards") ? "bg-gray-800" : ""}`}
                 onClick={() => handleNavigation("/dashboards")}
               >
-                <BarChart3 className="h-5 w-5 text-white" />
-                {open && <span className="text-white">Dashboards</span>}
+                <BarChart3 className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Dashboards</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -90,8 +91,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 className={`hover:bg-gray-800 group ${isActive("/data-collections") ? "bg-gray-800" : ""}`}
                 onClick={() => handleNavigation("/data-collections")}
               >
-                <Database className="h-5 w-5 text-white" />
-                {open && <span className="text-white">Data Collections</span>}
+                <Database className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Data Collections</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -99,8 +100,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 className={`hover:bg-gray-800 group ${isActive("/apps") ? "bg-gray-800" : ""}`}
                 onClick={() => handleNavigation("/apps")}
               >
-                <Layout className="h-5 w-5 text-white" />
-                {open && <span className="text-white">Apps</span>}
+                <Layout className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Apps</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -108,8 +109,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 className={`hover:bg-gray-800 group ${isActive("/file-explorer") ? "bg-gray-800" : ""}`}
                 onClick={() => handleNavigation("/file-explorer")}
               >
-                <FolderOpen className="h-5 w-5 text-white" />
-                {open && <span className="text-white">File Explorer</span>}
+                <FolderOpen className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">File Explorer</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -118,8 +119,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={toggleSidebar} className="hover:bg-gray-800 hover:text-white">
-                <PanelLeft className="h-5 w-5 text-white" />
-                {open && <span className="text-white">Toggle Sidebar</span>}
+                <PanelLeft className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Toggle Sidebar</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -127,8 +128,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
                 className={`hover:bg-gray-800 hover:text-white ${isActive("/settings") ? "bg-gray-800" : ""}`}
                 onClick={() => handleNavigation("/settings")}
               >
-                <Settings className="h-5 w-5 text-white" />
-                {open && <span className="text-white">Settings</span>}
+                <Settings className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Settings</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

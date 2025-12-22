@@ -10,8 +10,7 @@ export function EmptyState({ onSubmit }: EmptyStateProps) {
     <div className="flex flex-1 flex-col items-center justify-center px-4 w-full">
       <div className="max-w-3xl w-full space-y-6 -mt-20">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-medium tracking-tight text-balance">Research Assistant</h1>
-          <p className="text-sm text-muted-foreground">Generate insights from your data</p>
+          <h1 className="text-3xl font-medium tracking-tight text-balance">How can I help you today?</h1>
         </div>
 
         <PromptForm onSubmit={onSubmit} />
