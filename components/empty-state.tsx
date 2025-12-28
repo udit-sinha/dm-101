@@ -1,8 +1,10 @@
 "use client"
 import { PromptForm } from "./prompt-form"
 
+type AgentMode = "auto" | "fast" | "research" | "data-quality"
+
 interface EmptyStateProps {
-  onSubmit: (data: { message: string; mode: "fast" | "research"; context: any[] }) => void
+  onSubmit: (data: { message: string; mode: AgentMode; context: any[] }) => void
 }
 
 export function EmptyState({ onSubmit }: EmptyStateProps) {

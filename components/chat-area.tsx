@@ -4,6 +4,8 @@ import { PromptForm } from "./prompt-form"
 import { MessageList } from "./message-list"
 import { useEffect, useRef } from "react"
 
+type AgentMode = "auto" | "fast" | "research" | "data-quality"
+
 interface Message {
   id: string
   role: "user" | "assistant"
@@ -14,7 +16,7 @@ interface Message {
 
 interface ChatAreaProps {
   messages: Message[]
-  onSubmit: (data: { message: string; mode: "fast" | "research"; context: any[] }) => void
+  onSubmit: (data: { message: string; mode: AgentMode; context: any[] }) => void
   onArtifactClick: (artifact: { type: string; content: string }) => void
 }
 

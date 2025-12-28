@@ -3,20 +3,22 @@
 import type React from "react"
 
 import { useState, useRef } from "react"
-import { Sparkles, Files, Layers, Plus, ArrowRight, Upload, MapIcon } from "lucide-react"
+import { Sparkles, Files, Layers, Plus, ArrowRight, Upload, MapIcon, Zap, Search, BarChart3, Wrench, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { MapDrawer } from "./map-drawer"
 import { FileUpload } from "./file-upload"
 import { Badge } from "@/components/ui/badge"
 
+type AgentMode = "auto" | "fast" | "research" | "data-quality"
+
 interface PromptFormProps {
-  onSubmit: (data: { message: string; mode: "fast" | "research"; context: any[] }) => void
+  onSubmit: (data: { message: string; mode: AgentMode; context: any[] }) => void
 }
 
 export function PromptForm({ onSubmit }: PromptFormProps) {
-  const [mode, setMode] = useState<"fast" | "research">("research")
+  const [mode, setMode] = useState<AgentMode>("auto")
   const [message, setMessage] = useState("")
   const [showMapDrawer, setShowMapDrawer] = useState(false)
   const [showFileUpload, setShowFileUpload] = useState(false)
@@ -96,15 +98,15 @@ export function PromptForm({ onSubmit }: PromptFormProps) {
           {/* Bottom Bar */}
           <div className="flex items-center justify-between p-4 pt-0">
             <div className="flex items-center gap-2">
-              {/* Context Button */}
+              {/* Add Context Button - Plus Icon */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Layers className="h-4 w-4" />
-                    Context
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Add Context</DropdownMenuLabel>
                   <DropdownMenuItem onClick={() => setShowMapDrawer(true)}>
                     <MapIcon className="mr-2 h-4 w-4" />
                     Map Area
@@ -116,35 +118,54 @@ export function PromptForm({ onSubmit }: PromptFormProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Templates Button */}
-
-              {/* Mode Selector */}
-              <div className="flex items-center gap-1 rounded-lg bg-background border p-0.5">
-                <button
-                  onClick={() => setMode("fast")}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                    mode === "fast" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  }`}
-                >
-                  Fast
-                </button>
-                <button
-                  onClick={() => setMode("research")}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                    mode === "research" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  }`}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Research
-                </button>
-              </div>
+              {/* Agent Mode Selector - Tools Button */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Wrench className="h-4 w-4" />
+                    {mode === "auto" && "Auto"}
+                    {mode === "fast" && "Fast Answer"}
+                    {mode === "research" && "Deep Research"}
+                    {mode === "data-quality" && "Data Quality"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Select Agent Mode</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setMode("auto")}>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">Auto</span>
+                      <span className="text-xs text-muted-foreground">Automatically select best mode for your query</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setMode("fast")}>
+                    <Zap className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">Fast Answer</span>
+                      <span className="text-xs text-muted-foreground">Quick responses for simple queries</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setMode("research")}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">Deep Research</span>
+                      <span className="text-xs text-muted-foreground">Comprehensive analysis with sources</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setMode("data-quality")}>
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">Data Quality Analyzer</span>
+                      <span className="text-xs text-muted-foreground">Analyze data quality and integrity</span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
-            {/* Submit Buttons */}
+            {/* Submit Button */}
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Plus className="h-4 w-4" />
-              </Button>
               <Button size="icon" className="h-8 w-8" onClick={handleSubmit} disabled={!message.trim()}>
                 <ArrowRight className="h-4 w-4" />
               </Button>
