@@ -1,12 +1,25 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import maplibregl from 'maplibre-gl'
-import { Protocol } from 'pmtiles'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import dynamic from 'next/dynamic'
 import { MapControls } from './map-controls'
 import { LayerPanel } from './layer-panel'
 import { FeatureDetails } from './feature-details'
+
+// Dynamically import maplibre-gl to avoid SSR issues
+let maplibregl: any = null
+let Protocol: any = null
+
+const loadMapLibre = async () => {
+  if (!maplibregl) {
+    const ml = await import('maplibre-gl')
+    maplibregl = ml.default
+  }
+  if (!Protocol) {
+    const pt = await import('pmtiles')
+    Protocol = pt.Protocol
+  }
+}
 
 export interface Feature {
   id: string
@@ -31,48 +44,60 @@ export function MapView() {
   useEffect(() => {
     if (!mapContainer.current) return
 
-    // Initialize PMTiles protocol
-    let protocol = new Protocol()
-    maplibregl.addProtocol('pmtiles', protocol.tile)
+    const initMap = async () => {
+      await loadMapLibre()
 
-    // Create map
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: baseStyle === 'dark'
-        ? 'https://demotiles.maplibre.org/style.json'
-        : 'https://demotiles.maplibre.org/style.json',
-      center: [-100.5, 35.5],
-      zoom: 6,
-      pitch: 0,
-      bearing: 0,
-    })
+      if (!maplibregl) return
 
-    // Add sources
-    map.current.on('load', () => {
-      if (!map.current) return
+      // Initialize PMTiles protocol
+      const protocol = new Protocol()
+      maplibregl.addProtocol('pmtiles', protocol.tile)
 
-      // PMTiles source
-      map.current.addSource('pmtiles', {
-        type: 'vector',
-        url: 'pmtiles://http://localhost:5000/api/pmtiles/data.pmtiles',
+      // Create map
+      map.current = new maplibregl.Map({
+        container: mapContainer.current,
+        style: baseStyle === 'dark'
+          ? 'https://demotiles.maplibre.org/style.json'
+          : 'https://demotiles.maplibre.org/style.json',
+        center: [-100.5, 35.5],
+        zoom: 6,
+        pitch: 0,
+        bearing: 0,
       })
 
-      // GeoJSON source
-      map.current.addSource('geojson', {
-        type: 'geojson',
-        data: 'http://localhost:5000/api/geojson/alerts.geojson',
-      })
+      // Add sources
+      if (map.current) {
+        map.current.on('load', () => {
+        if (!map.current) return
 
-      // Add layers
-      addLayers()
-      setupInteractivity()
-    })
+        // PMTiles source
+        map.current.addSource('pmtiles', {
+          type: 'vector',
+          url: 'pmtiles://http://localhost:5000/api/pmtiles/data.pmtiles',
+        })
+
+        // GeoJSON source
+        map.current.addSource('geojson', {
+          type: 'geojson',
+          data: 'http://localhost:5000/api/geojson/alerts.geojson',
+        })
+
+        // Add layers
+        addLayers()
+        setupInteractivity()
+        })
+      }
+    }
+
+    initMap()
 
     return () => {
       if (map.current) {
         map.current.remove()
       }
-      maplibregl.removeProtocol('pmtiles')
+      if (maplibregl) {
+        maplibregl.removeProtocol('pmtiles')
+      }
     }
   }, [])
 
@@ -128,7 +153,7 @@ export function MapView() {
     })
 
     // Click to select
-    map.current.on('click', ['polygons', 'lines', 'points'], (e) => {
+    map.current.on('click', ['polygons', 'lines', 'points'], (e: any) => {
       if (e.features && e.features.length > 0) {
         const feature = e.features[0]
         setSelectedFeature({
@@ -140,7 +165,7 @@ export function MapView() {
     })
 
     // Click empty space to deselect
-    map.current.on('click', (e) => {
+    map.current.on('click', (e: any) => {
       const features = map.current!.queryRenderedFeatures({ layers: ['polygons', 'lines', 'points'] })
       if (features.length === 0) {
         setSelectedFeature(null)
