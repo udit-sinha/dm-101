@@ -15,6 +15,8 @@ type AgentMode = "auto" | "fast" | "research" | "data-quality"
 
 interface PromptFormProps {
   onSubmit: (data: { message: string; mode: AgentMode; context: any[] }) => void
+  isLoading?: boolean
+  onCancel?: () => void
 }
 
 export function PromptForm({ onSubmit }: PromptFormProps) {
@@ -85,6 +87,7 @@ export function PromptForm({ onSubmit }: PromptFormProps) {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Ask or select a template"
+              data-testid="prompt-input"
               className="min-h-[60px] max-h-[200px] resize-none border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none shadow-none text-base bg-transparent placeholder:text-muted-foreground"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -164,11 +167,29 @@ export function PromptForm({ onSubmit }: PromptFormProps) {
               </DropdownMenu>
             </div>
 
-            {/* Submit Button */}
+            {/* Submit/Cancel Button */}
             <div className="flex items-center gap-2">
-              <Button size="icon" className="h-8 w-8" onClick={handleSubmit} disabled={!message.trim()}>
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              {isLoading ? (
+                <Button
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={onCancel}
+                  variant="destructive"
+                  data-testid="cancel-button"
+                >
+                  ✕
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleSubmit}
+                  disabled={!message.trim()}
+                  data-testid="submit-button"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>

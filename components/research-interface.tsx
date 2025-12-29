@@ -6,6 +6,7 @@ import { useState } from "react"
 import { ChatArea } from "./chat-area"
 import { EmptyState } from "./empty-state"
 import { X } from "lucide-react"
+import { useChatStream, type StreamEvent } from "@/hooks/use-chat-stream"
 
 interface ProgressStep {
   id: string
@@ -28,76 +29,58 @@ export function ResearchInterface() {
   const [selectedArtifact, setSelectedArtifact] = useState<{ type: string; content: string } | null>(null)
   const [panelWidth, setPanelWidth] = useState(typeof window !== "undefined" ? window.innerWidth / 2 : 800)
   const [isDragging, setIsDragging] = useState(false)
+  const [currentConversationId, setCurrentConversationId] = useState<number | undefined>()
 
-  const simulateProgress = (messageId: string) => {
-    const steps: ProgressStep[] = [
-      { id: "1", title: "Analyzing query", status: "pending" },
-      {
-        id: "2",
-        title: "Searching relevant sources",
-        status: "pending",
-        documents: [
-          "research-paper-2024.pdf",
-          "market-analysis-report.pdf",
-          "data-trends-summary.csv",
-          "industry-overview.docx",
-        ],
-      },
-      { id: "3", title: "Processing data", status: "pending" },
-      { id: "4", title: "Generating insights", status: "pending" },
-    ]
-
-    setMessages((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, progress: steps } : msg)))
-
-    steps.forEach((step, index) => {
-      setTimeout(() => {
-        setMessages((prev) =>
-          prev.map((msg) => {
-            if (msg.id === messageId && msg.progress) {
-              const updatedSteps = msg.progress.map((s) =>
-                s.id === step.id ? { ...s, status: "in-progress" as const } : s,
-              )
-              return { ...msg, progress: updatedSteps }
+  const { sendMessage: streamMessage, cancel: cancelStream, isLoading } = useChatStream({
+    onProgress: (event: StreamEvent) => {
+      if (event.type === "progress") {
+        const lastMsg = messages[messages.length - 1]
+        if (lastMsg?.role === "assistant") {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIndex = updated.length - 1
+            if (!updated[lastIndex].progress) {
+              updated[lastIndex].progress = []
             }
-            return msg
-          }),
-        )
-
-        setTimeout(() => {
-          setMessages((prev) =>
-            prev.map((msg) => {
-              if (msg.id === messageId && msg.progress) {
-                const updatedSteps = msg.progress.map((s) =>
-                  s.id === step.id
-                    ? { ...s, status: "completed" as const, details: `${s.title} completed successfully` }
-                    : s,
-                )
-                return { ...msg, progress: updatedSteps }
-              }
-              return msg
-            }),
-          )
-
-          if (index === steps.length - 1) {
-            setTimeout(() => {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: (Date.now() + 1).toString(),
-                  role: "assistant",
-                  content: "Based on my analysis, here are the key insights from your data...",
-                  artifact: {
-                    type: "Analysis Result",
-                    content: "Sample analysis output with findings and recommendations.",
-                  },
-                },
-              ])
-            }, 500)
-          }
-        }, 1000)
-      }, index * 2000)
-    })
-  }
+            const existingStep = updated[lastIndex].progress?.find((s) => s.title === event.data.step)
+            if (existingStep) {
+              existingStep.status = event.data.status as any
+            } else {
+              updated[lastIndex].progress?.push({
+                id: Date.now().toString(),
+                title: event.data.step,
+                status: event.data.status as any,
+              })
+            }
+            return updated
+          })
+        }
+      }
+    },
+    onContent: (text: string) => {
+      setMessages((prev) => {
+        const updated = [...prev]
+        const lastIndex = updated.length - 1
+        if (updated[lastIndex]?.role === "assistant") {
+          updated[lastIndex].content = text
+        }
+        return updated
+      })
+    },
+    onArtifact: (artifact) => {
+      setMessages((prev) => {
+        const updated = [...prev]
+        const lastIndex = updated.length - 1
+        if (updated[lastIndex]?.role === "assistant") {
+          updated[lastIndex].artifact = artifact
+        }
+        return updated
+      })
+    },
+    onComplete: (conversationId) => {
+      setCurrentConversationId(conversationId)
+    },
+  })
 
   const handleMouseDown = () => {
     setIsDragging(true)
@@ -145,8 +128,13 @@ export function ResearchInterface() {
                     role: "user",
                     content: data.message,
                   },
+                  {
+                    id: (Date.now() + 1).toString(),
+                    role: "assistant",
+                    content: "",
+                  },
                 ])
-                simulateProgress(messageId)
+                streamMessage(data.message, currentConversationId)
               }}
             />
           ) : (
@@ -161,10 +149,17 @@ export function ResearchInterface() {
                     role: "user",
                     content: data.message,
                   },
+                  {
+                    id: (Date.now() + 1).toString(),
+                    role: "assistant",
+                    content: "",
+                  },
                 ])
-                simulateProgress(messageId)
+                streamMessage(data.message, currentConversationId)
               }}
               onArtifactClick={setSelectedArtifact}
+              isLoading={isLoading}
+              onCancel={cancelStream}
             />
           )}
         </div>
@@ -179,7 +174,7 @@ export function ResearchInterface() {
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-border group-hover:bg-foreground/40 rounded-full transition-colors" />
             </div>
 
-            <div className="bg-background border-l flex flex-col overflow-hidden" style={{ width: `${panelWidth}px` }}>
+            <div className="bg-background border-l flex flex-col overflow-hidden" style={{ width: `${panelWidth}px` }} data-testid="artifact-panel">
               <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
                 <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   {selectedArtifact.type}

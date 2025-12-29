@@ -54,7 +54,7 @@ export function MessageList({ messages, onArtifactClick }: MessageListProps) {
   return (
     <div className="px-6 py-6 space-y-6">
       {messages.map((message) => (
-        <div key={message.id} className="space-y-3">
+        <div key={message.id} className="space-y-3" data-testid="message-container">
           {message.role === "user" && (
             <div className="flex justify-center">
               <div className="max-w-3xl w-full flex justify-end">
@@ -74,7 +74,7 @@ export function MessageList({ messages, onArtifactClick }: MessageListProps) {
                   const showChildren = hasChildren && (step.status === "in-progress" || isExpanded)
 
                   return (
-                    <div key={step.id} className="space-y-2">
+                    <div key={step.id} className="space-y-2" data-testid="progress-step" data-status={step.status}>
                       <div
                         className={`flex items-start gap-2 py-1 ${hasChildren ? "cursor-pointer hover:text-foreground transition-colors" : ""}`}
                         onClick={() => hasChildren && toggleStep(step.id)}
@@ -107,12 +107,13 @@ export function MessageList({ messages, onArtifactClick }: MessageListProps) {
           {message.role === "assistant" && (
             <div className="flex justify-center">
               <div className="space-y-3 max-w-3xl w-full">
-                <p className="text-sm leading-relaxed text-foreground/90">{message.content}</p>
+                <p className="text-sm leading-relaxed text-foreground/90" data-testid="message-content">{message.content}</p>
 
                 {message.artifact && (
                   <Card
                     className="p-4 hover:bg-muted/50 cursor-pointer transition-colors border-l-2 border-l-foreground"
                     onClick={() => onArtifactClick(message.artifact!)}
+                    data-testid="artifact-card"
                   >
                     <div className="flex items-center justify-between">
                       <div>

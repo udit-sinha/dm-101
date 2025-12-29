@@ -18,9 +18,11 @@ interface ChatAreaProps {
   messages: Message[]
   onSubmit: (data: { message: string; mode: AgentMode; context: any[] }) => void
   onArtifactClick: (artifact: { type: string; content: string }) => void
+  isLoading?: boolean
+  onCancel?: () => void
 }
 
-export function ChatArea({ messages, onSubmit, onArtifactClick }: ChatAreaProps) {
+export function ChatArea({ messages, onSubmit, onArtifactClick, isLoading, onCancel }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
@@ -40,7 +42,7 @@ export function ChatArea({ messages, onSubmit, onArtifactClick }: ChatAreaProps)
 
       <div className="p-6 shrink-0">
         <div className="max-w-3xl mx-auto">
-          <PromptForm onSubmit={onSubmit} />
+          <PromptForm onSubmit={onSubmit} isLoading={isLoading} onCancel={onCancel} />
         </div>
       </div>
     </div>
