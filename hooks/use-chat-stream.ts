@@ -13,6 +13,45 @@ export interface UseChatStreamOptions {
   onComplete?: (conversationId: number) => void
 }
 
+const MAX_RETRIES = 3
+const INITIAL_RETRY_DELAY = 1000 // 1 second
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries: number = MAX_RETRIES
+): Promise<Response> {
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options)
+      if (response.ok) return response
+
+      // Don't retry on client errors (4xx)
+      if (response.status >= 400 && response.status < 500) {
+        throw new Error(`Client error: ${response.statusText}`)
+      }
+
+      // Retry on server errors (5xx)
+      if (response.status >= 500) {
+        throw new Error(`Server error: ${response.statusText}`)
+      }
+
+      return response
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+
+      if (attempt < maxRetries) {
+        const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+      }
+    }
+  }
+
+  throw lastError || new Error("Failed to fetch after retries")
+}
+
 export function useChatStream(options: UseChatStreamOptions = {}) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -26,18 +65,23 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-        const response = await fetch(`${apiUrl}/api/chat/stream`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+
+        const response = await fetchWithRetry(
+          `${apiUrl}/api/chat/stream`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message,
+              conversation_id: conversationId,
+              mode: "auto",
+            }),
+            signal: abortControllerRef.current.signal,
           },
-          body: JSON.stringify({
-            message,
-            conversation_id: conversationId,
-            mode: "auto",
-          }),
-          signal: abortControllerRef.current.signal,
-        })
+          MAX_RETRIES
+        )
 
         if (!response.ok) {
           throw new Error(`API error: ${response.statusText}`)
