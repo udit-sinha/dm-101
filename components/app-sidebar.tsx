@@ -1,5 +1,5 @@
 "use client"
-import { Settings, FolderTree, Home, PanelLeft, BarChart3, Database, Layout, FolderOpen, Bot } from "lucide-react"
+import { Settings, FolderTree, Home, PanelLeft, BarChart3, Database, Layout, FolderOpen, Bot, Map } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -111,6 +111,15 @@ export function AppSidebar({ children }: AppSidebarProps) {
               >
                 <FolderOpen className="h-5 w-5 text-white flex-shrink-0" />
                 <SidebarLabel className="text-white">File Explorer</SidebarLabel>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className={`hover:bg-gray-800 group ${isActive("/map") ? "bg-gray-800" : ""}`}
+                onClick={() => handleNavigation("/map")}
+              >
+                <Map className="h-5 w-5 text-white flex-shrink-0" />
+                <SidebarLabel className="text-white">Map View</SidebarLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
