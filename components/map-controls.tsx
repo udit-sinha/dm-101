@@ -3,33 +3,43 @@
 import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-interface MapControlsProps {
-  baseStyle: 'dark' | 'satellite'
-  onStyleChange: (style: 'dark' | 'satellite') => void
+interface MapStyle {
+  id: string
+  name: string
+  url: string
 }
 
-export function MapControls({ baseStyle, onStyleChange }: MapControlsProps) {
+interface MapControlsProps {
+  baseStyle: string
+  onStyleChange: (style: string) => void
+  styles?: MapStyle[]
+}
+
+export function MapControls({ baseStyle, onStyleChange, styles }: MapControlsProps) {
+  // Default styles if not provided
+  const defaultStyles: MapStyle[] = [
+    { id: 'dark', name: 'Dark', url: '/styles/dark.json' },
+    { id: 'satellite', name: 'Satellite', url: '/styles/satellite.json' },
+  ]
+
+  const displayStyles = styles || defaultStyles
+
   return (
     <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
       <div className="bg-white rounded-lg shadow-lg p-2 flex flex-col gap-2">
-        <Button
-          variant={baseStyle === 'dark' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onStyleChange('dark')}
-          className="flex items-center gap-2"
-        >
-          <Moon className="h-4 w-4" />
-          Dark
-        </Button>
-        <Button
-          variant={baseStyle === 'satellite' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onStyleChange('satellite')}
-          className="flex items-center gap-2"
-        >
-          <Sun className="h-4 w-4" />
-          Satellite
-        </Button>
+        {displayStyles.map((style) => (
+          <Button
+            key={style.id}
+            variant={baseStyle === style.id ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => onStyleChange(style.id)}
+            className="flex items-center gap-2"
+          >
+            {style.id === 'dark' && <Moon className="h-4 w-4" />}
+            {style.id === 'satellite' && <Sun className="h-4 w-4" />}
+            {style.name}
+          </Button>
+        ))}
       </div>
     </div>
   )
