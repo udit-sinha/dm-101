@@ -35,20 +35,20 @@ export function LayerDrawer({ visibleLayers, onToggleLayer, layers }: LayerDrawe
     const displayLayers = layers || DEFAULT_LAYER_CONFIG
 
     return (
-        <>
+        <div className="flex flex-col gap-2">
             {/* Toggle Button */}
             <Button
                 variant="secondary"
                 size="icon"
                 onClick={() => setIsOpen(!isOpen)}
-                className="absolute bottom-4 left-4 z-20 h-10 w-10 rounded-full shadow-lg bg-white hover:bg-gray-100"
+                className="h-10 w-10 rounded-full shadow-lg bg-white hover:bg-gray-100"
             >
                 <Layers className="h-5 w-5" />
             </Button>
 
             {/* Drawer Panel */}
             <div
-                className={`absolute bottom-4 left-16 z-10 bg-white rounded-lg shadow-xl transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
+                className={`bg-white rounded-lg shadow-xl transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
                     }`}
                 style={{ width: '280px' }}
             >
@@ -118,6 +118,6 @@ export function LayerDrawer({ visibleLayers, onToggleLayer, layers }: LayerDrawe
                     </div>
                 </div>
             </div>
-        </>
+        </div>
     )
 }

@@ -64,7 +64,7 @@ export function SelectionResults({ features, onClose, onZoomTo }: SelectionResul
     }
 
     return (
-        <div className="absolute top-4 right-4 z-20 w-80 bg-white rounded-lg shadow-xl">
+        <div className="w-80 bg-white rounded-lg shadow-xl">
             <div className="p-3 border-b flex items-center justify-between">
                 <h3 className="font-semibold text-sm">
                     Selected Features ({features.length})

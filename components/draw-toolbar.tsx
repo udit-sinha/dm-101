@@ -15,7 +15,7 @@ interface DrawToolbarProps {
 
 export function DrawToolbar({ drawMode, onModeChange, onClear, selectedCount }: DrawToolbarProps) {
     return (
-        <div className="absolute top-4 left-4 z-20 bg-white rounded-lg shadow-lg p-2 flex flex-col gap-1">
+        <div className="bg-white rounded-lg shadow-lg p-2 flex flex-col gap-1">
             <Button
                 variant={drawMode === 'none' ? 'default' : 'ghost'}
                 size="sm"

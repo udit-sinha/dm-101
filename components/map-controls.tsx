@@ -25,7 +25,7 @@ export function MapControls({ baseStyle, onStyleChange, styles }: MapControlsPro
   const displayStyles = styles || defaultStyles
 
   return (
-    <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+    <div className="flex flex-col gap-2">
       <div className="bg-white rounded-lg shadow-lg p-2 flex flex-col gap-2">
         {displayStyles.map((style) => (
           <Button

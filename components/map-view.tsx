@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic'
 import { MapControls } from './map-controls'
 import { LayerDrawer } from './layer-drawer'
 import { FeatureDetails } from './feature-details'
+import { DrawToolbar } from './draw-toolbar'
+import { SelectionResults } from './selection-results'
 
 // Dynamically import maplibre-gl to avoid SSR issues
 let maplibregl: any = null
@@ -43,6 +45,12 @@ export interface LayerConfig {
     zIndex?: number
 }
 
+export interface UIPositionConfig {
+    layerDrawer?: 'left' | 'right' | 'bottom'
+    drawToolbar?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+    mapControls?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+}
+
 export interface MapViewProps {
     layers?: LayerConfig[]
     baseMapConfigs?: {
@@ -50,10 +58,13 @@ export interface MapViewProps {
         defaultStyle: string
     }
     enableSelection?: boolean
+    enableDrawSelection?: boolean
     onSelectionChange?: (features: Feature[]) => void
     onFeatureSelect?: (feature: Feature) => void
+    onDrawSelectionChange?: (features: Feature[]) => void
     center?: [number, number]
     zoom?: number
+    uiPositions?: UIPositionConfig
 }
 
 // Default layer configuration for backward compatibility
@@ -150,10 +161,17 @@ export function MapView({
     layers = DEFAULT_LAYERS,
     baseMapConfigs = DEFAULT_BASE_MAP_CONFIGS,
     enableSelection = true,
+    enableDrawSelection = true,
     onSelectionChange,
     onFeatureSelect,
+    onDrawSelectionChange,
     center = [-90.0, 27.5],
     zoom = 5,
+    uiPositions = {
+        layerDrawer: 'left',
+        drawToolbar: 'top-right',
+        mapControls: 'top-right'
+    }
 }: MapViewProps = {}) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<maplibregl.Map | null>(null)
@@ -162,11 +180,51 @@ export function MapView({
     const [visibleLayers, setVisibleLayers] = useState<Record<string, boolean>>(
         layers.reduce((acc, layer) => ({ ...acc, [layer.id]: layer.visible }), {})
     )
+    const [drawMode, setDrawMode] = useState<'none' | 'rectangle' | 'circle' | 'polygon'>('none')
+    const [selectedFeatures, setSelectedFeatures] = useState<Feature[]>([])
+    const [isDrawing, setIsDrawing] = useState(false)
+    const drawStartPoint = useRef<{ x: number; y: number } | null>(null)
+    const drawCanvas = useRef<HTMLCanvasElement | null>(null)
 
     // Get the style URL for the current base style
     const getStyleUrl = (style: string) => {
         const styleConfig = baseMapConfigs.styles.find(s => s.id === style)
         return styleConfig?.url || baseMapConfigs.styles[0].url
+    }
+
+    // Query features within a bounding box
+    const queryFeaturesInBounds = async (bounds: { minLng: number; minLat: number; maxLng: number; maxLat: number }) => {
+        if (!map.current) return []
+
+        const interactiveLayers = layers.filter(l => l.type !== 'symbol').map(l => l.id)
+        const features = map.current.queryRenderedFeatures({ layers: interactiveLayers })
+
+        // Filter features within bounds
+        const filtered = features.filter(feature => {
+            if (feature.geometry.type === 'Point') {
+                const [lng, lat] = feature.geometry.coordinates
+                return lng >= bounds.minLng && lng <= bounds.maxLng && lat >= bounds.minLat && lat <= bounds.maxLat
+            }
+            return true // For now, include all non-point features
+        })
+
+        return filtered.map(f => ({
+            id: f.id as string,
+            properties: f.properties || {},
+            geometry: f.geometry as any
+        }))
+    }
+
+    // Handle draw mode changes
+    const handleDrawModeChange = (mode: 'none' | 'rectangle' | 'circle' | 'polygon') => {
+        setDrawMode(mode)
+        setSelectedFeatures([])
+    }
+
+    // Clear selection
+    const handleClearSelection = () => {
+        setSelectedFeatures([])
+        setDrawMode('none')
     }
 
     // Add sources dynamically based on layer configuration
@@ -228,6 +286,9 @@ export function MapView({
                     addLayers()
                     if (enableSelection) {
                         setupInteractivity()
+                    }
+                    if (enableDrawSelection) {
+                        setupDrawSelection()
                     }
                 })
             }
@@ -369,6 +430,40 @@ export function MapView({
         })
     }
 
+    const setupDrawSelection = () => {
+        if (!map.current) return
+
+        // Handle mouse down for drawing
+        map.current.on('mousedown', (e: any) => {
+            if (drawMode === 'none') return
+            setIsDrawing(true)
+            drawStartPoint.current = { x: e.originalEvent.clientX, y: e.originalEvent.clientY }
+        })
+
+        // Handle mouse up for drawing
+        map.current.on('mouseup', async (e: any) => {
+            if (!isDrawing || drawMode === 'none' || !drawStartPoint.current) return
+            setIsDrawing(false)
+
+            const endPoint = { x: e.originalEvent.clientX, y: e.originalEvent.clientY }
+            const startLngLat = map.current!.unproject([drawStartPoint.current.x, drawStartPoint.current.y])
+            const endLngLat = map.current!.unproject([endPoint.x, endPoint.y])
+
+            // Query features within bounds
+            const bounds = {
+                minLng: Math.min(startLngLat.lng, endLngLat.lng),
+                maxLng: Math.max(startLngLat.lng, endLngLat.lng),
+                minLat: Math.min(startLngLat.lat, endLngLat.lat),
+                maxLat: Math.max(startLngLat.lat, endLngLat.lat),
+            }
+
+            const features = await queryFeaturesInBounds(bounds)
+            setSelectedFeatures(features)
+            onDrawSelectionChange?.(features)
+            drawStartPoint.current = null
+        })
+    }
+
     const toggleLayer = (layerId: string) => {
         setVisibleLayers(prev => ({
             ...prev,
@@ -415,18 +510,56 @@ export function MapView({
     }
 
     return (
-        <div className="flex h-full w-full overflow-hidden bg-black">
-            <div ref={mapContainer} className="flex-1" />
-            <MapControls
-                baseStyle={baseStyle}
-                onStyleChange={changeBaseStyle}
-                styles={baseMapConfigs.styles}
-            />
-            <LayerDrawer
-                visibleLayers={visibleLayers}
-                onToggleLayer={toggleLayer}
-                layers={layers}
-            />
+        <div className="relative h-full w-full overflow-hidden bg-black">
+            <div ref={mapContainer} className="h-full w-full" />
+
+            {/* Map Controls - Top Right */}
+            <div className="absolute top-4 right-4 z-20">
+                <MapControls
+                    baseStyle={baseStyle}
+                    onStyleChange={changeBaseStyle}
+                    styles={baseMapConfigs.styles}
+                />
+            </div>
+
+            {/* Layer Drawer - Left Corner (Inside Map) */}
+            <div className="absolute left-4 top-4 z-20">
+                <LayerDrawer
+                    visibleLayers={visibleLayers}
+                    onToggleLayer={toggleLayer}
+                    layers={layers}
+                />
+            </div>
+
+            {/* Draw Toolbar - Top Right (Below Map Controls) */}
+            {enableDrawSelection && (
+                <div className="absolute top-4 right-64 z-20">
+                    <DrawToolbar
+                        drawMode={drawMode}
+                        onModeChange={handleDrawModeChange}
+                        onClear={handleClearSelection}
+                        selectedCount={selectedFeatures.length}
+                    />
+                </div>
+            )}
+
+            {/* Selection Results - Top Right */}
+            {selectedFeatures.length > 0 && (
+                <div className="absolute top-4 right-4 z-20">
+                    <SelectionResults
+                        features={selectedFeatures}
+                        onClose={handleClearSelection}
+                        onZoomTo={(feature) => {
+                            if (map.current && feature.geometry.type === 'Point') {
+                                const [lng, lat] = feature.geometry.coordinates
+                                map.current.flyTo({ center: [lng, lat], zoom: 10 })
+                            }
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* Feature Details Modal */}
             {selectedFeature && <FeatureDetails feature={selectedFeature} onClose={() => setSelectedFeature(null)} />}
         </div>
     )
