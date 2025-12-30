@@ -10,6 +10,13 @@ import {
   isStepEvent,
   isDoneEvent,
   isErrorEvent,
+  ArtifactEventData,
+  FeedbackEventData,
+  GoalUpdateEventData,
+  TokenEventData,
+  ThinkingEventData,
+  ThinkingItem,
+  DoneEventData,
 } from '@/lib/types/chat'
 
 // Initial state
@@ -72,7 +79,97 @@ function chatStreamReducer(state: ChatStreamState, action: ChatStreamAction): Ch
         }
       }
 
+      // Handle artifact events
+      if (event.type === 'artifact') {
+        const artifactData = event.data as ArtifactEventData
+        return {
+          ...state,
+          messages: state.messages.map((msg, idx) =>
+            idx === state.messages.length - 1
+              ? {
+                  ...msg,
+                  artifacts: [...msg.artifacts, artifactData.artifact],
+                }
+              : msg
+          ),
+        }
+      }
+
+      // Handle feedback events
+      if (event.type === 'feedback') {
+        const feedbackData = event.data as FeedbackEventData
+        return {
+          ...state,
+          messages: state.messages.map((msg, idx) =>
+            idx === state.messages.length - 1
+              ? {
+                  ...msg,
+                  feedback: feedbackData.feedback,
+                }
+              : msg
+          ),
+        }
+      }
+
+      // Handle thinking events (agent's reasoning stream)
+      if (event.type === 'thinking') {
+        const thinkingData = event.data as ThinkingEventData
+        const newThought: ThinkingItem = {
+          id: `thought-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          content: thinkingData.content,
+          agentName: thinkingData.agentName,
+          timestamp: Date.now(),
+          subItems: thinkingData.subItems,
+        }
+        return {
+          ...state,
+          messages: state.messages.map((msg, idx) =>
+            idx === state.messages.length - 1
+              ? {
+                  ...msg,
+                  thinking: [...msg.thinking, newThought],
+                }
+              : msg
+          ),
+        }
+      }
+
+      // Handle goal update events
+      if (event.type === 'goal_update') {
+        const goalData = event.data as GoalUpdateEventData
+        return {
+          ...state,
+          messages: state.messages.map((msg, idx) =>
+            idx === state.messages.length - 1
+              ? {
+                  ...msg,
+                  goals: goalData.goal,
+                }
+              : msg
+          ),
+        }
+      }
+
+      // Handle token events (streaming text) - currently not used in main flow
+      if (event.type === 'token') {
+        const tokenData = event.data as TokenEventData
+        return {
+          ...state,
+          messages: state.messages.map((msg, idx) =>
+            idx === state.messages.length - 1
+              ? {
+                  ...msg,
+                  content: tokenData.isFinal
+                    ? tokenData.token
+                    : (msg.content || '') + tokenData.token,
+                }
+              : msg
+          ),
+        }
+      }
+
       if (isDoneEvent(event)) {
+        const doneData = event.data as DoneEventData
         return {
           ...state,
           messages: state.messages.map((msg, idx) =>
@@ -80,9 +177,13 @@ function chatStreamReducer(state: ChatStreamState, action: ChatStreamAction): Ch
               ? {
                   ...msg,
                   isStreaming: false,
-                  artifacts: event.data.artifacts,
-                  feedback: event.data.feedback,
-                  goals: event.data.goals,
+                  content: doneData.finalMessage,
+                  mode: doneData.responseMode || 'conversational',
+                  thinkingCollapsed: true, // Auto-collapse thinking when done
+                  // Merge any final artifacts/feedback/goals from DONE event
+                  artifacts: doneData.artifacts || msg.artifacts,
+                  feedback: doneData.feedback || msg.feedback,
+                  goals: doneData.goals || msg.goals,
                 }
               : msg
           ),
@@ -93,6 +194,20 @@ function chatStreamReducer(state: ChatStreamState, action: ChatStreamAction): Ch
       if (isErrorEvent(event)) {
         return {
           ...state,
+          messages: state.messages.map((msg, idx) =>
+            idx === state.messages.length - 1
+              ? {
+                  ...msg,
+                  isStreaming: false,
+                  mode: 'error',
+                  error: {
+                    code: event.data.code,
+                    message: event.data.message,
+                    recoverable: event.data.recoverable,
+                  },
+                }
+              : msg
+          ),
           error: event.data.message,
           isLoading: false,
         }
@@ -147,40 +262,43 @@ export function useChatStream() {
         id: `msg-${Date.now()}`,
         role: 'user',
         content: message,
-        mode,
-        timestamp: Date.now(),
+        timestamp: new Date(),
         isStreaming: false,
+        mode: 'conversational',
+        thinking: [],
+        thinkingCollapsed: false,
+        artifacts: [],
       }
 
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
         content: '',
-        mode,
-        timestamp: Date.now(),
+        timestamp: new Date(),
         isStreaming: true,
+        mode: 'conversational',
+        thinking: [],
+        thinkingCollapsed: false,
+        artifacts: [],
       }
 
       dispatch({ type: 'SEND_MESSAGE', message: userMessage })
       dispatch({ type: 'SEND_MESSAGE', message: assistantMessage })
 
       try {
-        // Call API to start streaming
-        const response = await fetch('/api/chat/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message,
-            mode,
-            conversationId: state.conversationId,
-            context,
-          }),
+        // Get backend URL from environment or default to localhost
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+
+        // Call backend API to start streaming
+        const streamUrl = `${backendUrl}/api/chat/stream`
+
+        // Connect to SSE stream with POST request
+        connectToStream(streamUrl, {
+          message,
+          mode,
+          conversation_id: state.conversationId,
+          context,
         })
-
-        if (!response.ok) throw new Error('Failed to start chat')
-
-        const data = await response.json()
-        connectToStream(data.streamUrl)
       } catch (error) {
         dispatch({
           type: 'CONNECTION_ERROR',
@@ -191,31 +309,71 @@ export function useChatStream() {
     [state.conversationId]
   )
 
-  // Connect to EventSource stream
-  const connectToStream = useCallback((streamUrl: string) => {
+  // Connect to SSE stream using fetch (since EventSource doesn't support POST)
+  const connectToStream = useCallback(async (streamUrl: string, body: any) => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
     }
 
-    const eventSource = new EventSource(streamUrl)
-    eventSourceRef.current = eventSource
+    try {
+      const response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify(body),
+      })
 
-    eventSource.onopen = () => {
-      dispatch({ type: 'CONNECTION_OPENED' })
-    }
-
-    eventSource.onmessage = (event) => {
-      try {
-        const chatEvent: ChatStreamEvent = JSON.parse(event.data)
-        dispatch({ type: 'EVENT_RECEIVED', event: chatEvent })
-      } catch (error) {
-        console.error('Failed to parse event:', error)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
-    }
 
-    eventSource.onerror = () => {
-      eventSource.close()
-      dispatch({ type: 'CONNECTION_CLOSED' })
+      dispatch({ type: 'CONNECTION_OPENED' })
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      // Store reader in ref for cancellation
+      eventSourceRef.current = { close: () => reader.cancel() } as any
+
+      // Read the stream
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          dispatch({ type: 'CONNECTION_CLOSED' })
+          break
+        }
+
+        // Decode the chunk
+        const chunk = decoder.decode(value, { stream: true })
+
+        // Split by lines and process SSE events
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = line.slice(6) // Remove 'data: ' prefix
+              const chatEvent: ChatStreamEvent = JSON.parse(eventData)
+              dispatch({ type: 'EVENT_RECEIVED', event: chatEvent })
+            } catch (error) {
+              console.error('Failed to parse event:', error, line)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Stream connection error:', error)
+      dispatch({
+        type: 'CONNECTION_ERROR',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
     }
   }, [])
 

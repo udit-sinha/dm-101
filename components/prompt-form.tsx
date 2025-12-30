@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef } from "react"
-import { Sparkles, Files, Layers, Plus, ArrowRight, Upload, MapIcon, Zap, Search, BarChart3, Wrench, Wand2 } from "lucide-react"
+import { Sparkles, Files, Layers, Plus, ArrowRight, Upload, MapIcon, Zap, Search, BarChart3, Wrench, Wand2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
@@ -14,10 +14,12 @@ import { Badge } from "@/components/ui/badge"
 type AgentMode = "auto" | "fast" | "research" | "data-quality"
 
 interface PromptFormProps {
-  onSubmit: (data: { message: string; mode: AgentMode; context: any[] }) => void
+  onSubmit: (data: { message: string; mode?: AgentMode; context?: any[] }) => void
+  isLoading?: boolean
+  onCancel?: () => void
 }
 
-export function PromptForm({ onSubmit }: PromptFormProps) {
+export function PromptForm({ onSubmit, isLoading, onCancel }: PromptFormProps) {
   const [mode, setMode] = useState<AgentMode>("auto")
   const [message, setMessage] = useState("")
   const [showMapDrawer, setShowMapDrawer] = useState(false)
@@ -164,11 +166,28 @@ export function PromptForm({ onSubmit }: PromptFormProps) {
               </DropdownMenu>
             </div>
 
-            {/* Submit Button */}
+            {/* Submit/Cancel Button */}
             <div className="flex items-center gap-2">
-              <Button size="icon" className="h-8 w-8" onClick={handleSubmit} disabled={!message.trim()}>
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              {isLoading && onCancel ? (
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  className="h-8 w-8"
+                  onClick={onCancel}
+                  title="Cancel"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleSubmit}
+                  disabled={!message.trim() || isLoading}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>

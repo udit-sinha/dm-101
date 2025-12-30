@@ -163,7 +163,25 @@ export interface StepEventData {
 export interface ThinkingEventData {
   agentName: string
   content: string
+  subItems?: string[]
 }
+
+// Thinking item for the thinking stream
+export interface ThinkingItem {
+  id: string
+  content: string
+  agentName: string
+  timestamp: number
+  subItems?: string[]
+}
+
+// Response mode determines how to display the response
+export type ResponseMode =
+  | "conversational"
+  | "deep_research"
+  | "data_quality"
+  | "analytics"
+  | "error"
 
 export interface TokenEventData {
   token: string
@@ -188,6 +206,7 @@ export interface DoneEventData {
   feedback?: AgentFeedbackView
   goals?: GoalView
   nextSteps?: string[]
+  responseMode?: ResponseMode
 }
 
 export interface ErrorEventData {
@@ -216,18 +235,34 @@ export interface ChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
-  mode: "research" | "analytics"
-  timestamp: number
+  timestamp: Date
   conversationId?: number
 
   // Streaming state (assistant messages only)
   isStreaming: boolean
-  progress?: ProgressStep[]
 
-  // Completed message data
-  artifacts?: ArtifactSummary[]
+  // Mode-aware rendering
+  mode: ResponseMode
+
+  // Thinking stream (shows agent's reasoning)
+  thinking: ThinkingItem[]
+  thinkingCollapsed: boolean
+
+  // Artifacts
+  artifacts: ArtifactSummary[]
+
+  // Error state
+  error?: {
+    code: string
+    message: string
+    recoverable: boolean
+  }
+
+  // Legacy support
+  progress?: ProgressStep[]
   feedback?: AgentFeedbackView
   goals?: GoalView
+  suggestions?: string[]
 }
 
 // =============================================================================
