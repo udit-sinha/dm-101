@@ -170,6 +170,48 @@ function chatStreamReducer(state: ChatStreamState, action: ChatStreamAction): Ch
 
       if (isDoneEvent(event)) {
         const doneData = event.data as DoneEventData
+        
+        // NEW LOGIC: Parse structured JSON from backend
+        let finalContent = doneData.finalMessage;
+        let finalMode = doneData.responseMode || 'conversational';
+        let newArtifacts = [];
+
+        try {
+            // Try to parse as structured JSON from backend
+            // Check if it looks like JSON first to avoid unnecessary parsing
+            if (finalContent.trim().startsWith('{') && finalContent.trim().endsWith('}')) {
+                const structured = JSON.parse(finalContent);
+                
+                if (structured.mode && structured.chat_response) {
+                    // It is our new structured format
+                    finalContent = structured.chat_response;
+                    
+                    if (structured.mode === 'artifact' && structured.artifact_content) {
+                        // Create an artifact for the side panel
+                        // We use 'analytics' kind as a generic container for rich markdown reports
+                        const reportArtifact = {
+                            kind: 'analytics', // Renders using ArtifactPanel which supports markdown in 'details'
+                            title: structured.artifact_title || 'Analysis Report',
+                            preview: structured.artifact_content.slice(0, 150) + '...',
+                            createdAt: Date.now(),
+                            data: {
+                                answer: structured.chat_response,
+                                details: structured.artifact_content, // Full markdown content
+                                code: null
+                            }
+                        };
+                        newArtifacts.push(reportArtifact);
+                        finalMode = 'deep_research'; // Trigger side panel opening if configured
+                    } else {
+                        finalMode = 'conversational';
+                    }
+                }
+            }
+        } catch (e) {
+            // Not JSON, use as is
+            // console.debug('Content was not JSON', e);
+        }
+
         return {
           ...state,
           messages: state.messages.map((msg, idx) =>
@@ -177,11 +219,11 @@ function chatStreamReducer(state: ChatStreamState, action: ChatStreamAction): Ch
               ? {
                   ...msg,
                   isStreaming: false,
-                  content: doneData.finalMessage,
-                  mode: doneData.responseMode || 'conversational',
+                  content: finalContent, // Use parsed chat response
+                  mode: finalMode,
                   thinkingCollapsed: true, // Auto-collapse thinking when done
                   // Merge any final artifacts/feedback/goals from DONE event
-                  artifacts: doneData.artifacts || msg.artifacts,
+                  artifacts: [...(doneData.artifacts || msg.artifacts), ...newArtifacts],
                   feedback: doneData.feedback || msg.feedback,
                   goals: doneData.goals || msg.goals,
                 }

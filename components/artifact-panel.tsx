@@ -6,7 +6,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { X, Copy, Download } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface ArtifactPanelProps {
   artifact: ArtifactSummary
@@ -37,7 +47,25 @@ export function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps) {
             </div>
             <div>
               <h4 className="font-semibold mb-2">Details</h4>
-              <p className="text-sm text-gray-700">{analyticsData.details}</p>
+              <div className="text-sm text-gray-700 prose prose-sm max-w-none dark:prose-invert">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    table: ({node, ...props}) => (
+                      <div className="my-4 border rounded-md overflow-hidden">
+                        <Table {...props} />
+                      </div>
+                    ),
+                    thead: ({node, ...props}) => <TableHeader {...props} />,
+                    tbody: ({node, ...props}) => <TableBody {...props} />,
+                    tr: ({node, ...props}) => <TableRow {...props} />,
+                    th: ({node, ...props}) => <TableHead {...props} />,
+                    td: ({node, ...props}) => <TableCell {...props} />,
+                  }}
+                >
+                  {analyticsData.details}
+                </ReactMarkdown>
+              </div>
             </div>
             {analyticsData.code && (
               <div>
