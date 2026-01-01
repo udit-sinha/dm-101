@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import dynamic from 'next/dynamic'
 import { LayerDrawer } from './layer-drawer'
 import { SelectionToolbar, type DrawMode } from './selection-toolbar'
 import { FeatureDetailsPanel } from './feature-details-panel'
@@ -11,18 +10,65 @@ import { ChevronUp, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Legend } from './legend'
 
+// Type declarations for dynamically loaded modules
+interface MapLibreGL {
+    Map: new (options: Record<string, unknown>) => MapInstance
+    Popup: new (options?: Record<string, unknown>) => PopupInstance
+    addProtocol: (name: string, handler: unknown) => void
+    removeProtocol: (name: string) => void
+}
+
+interface MapInstance {
+    on: (event: string, layersOrCallback: unknown, callback?: unknown) => void
+    once: (event: string, callback: unknown) => void
+    remove: () => void
+    getLayer: (id: string) => unknown
+    getSource: (id: string) => unknown
+    addSource: (id: string, source: Record<string, unknown>) => void
+    addLayer: (layer: Record<string, unknown>) => void
+    setLayoutProperty: (layerId: string, property: string, value: unknown) => void
+    setFilter: (layerId: string, filter: unknown) => void
+    setStyle: (style: string) => void
+    getCanvas: () => HTMLCanvasElement
+    queryRenderedFeatures: (pointOrBox?: unknown, options?: Record<string, unknown>) => MapFeature[]
+    project: (lngLat: [number, number]) => { x: number; y: number }
+    getCenter: () => { toArray: () => [number, number] }
+    getZoom: () => number
+    flyTo: (options: Record<string, unknown>) => void
+    fitBounds: (bounds: [[number, number], [number, number]], options?: Record<string, unknown>) => void
+}
+
+interface PopupInstance {
+    setLngLat: (lngLat: { lng: number; lat: number }) => PopupInstance
+    setHTML: (html: string) => PopupInstance
+    addTo: (map: MapInstance) => PopupInstance
+    remove: () => void
+}
+
+interface MapFeature {
+    id?: string | number
+    properties?: Record<string, unknown>
+    geometry: {
+        type: string
+        coordinates: unknown
+    }
+    layer?: { id: string }
+}
+
 // Dynamically import maplibre-gl to avoid SSR issues
-let maplibregl: any = null
-let Protocol: any = null
+let maplibregl: MapLibreGL | null = null
+let Protocol: { new(): { tile: unknown } } | null = null
 
 const loadMapLibre = async () => {
     if (!maplibregl) {
+        // @ts-expect-error - Dynamic import for SSR compatibility
         const ml = await import('maplibre-gl')
-        maplibregl = ml.default
+        maplibregl = ml.default as unknown as MapLibreGL
     }
     if (!Protocol) {
+        // @ts-expect-error - Dynamic import for SSR compatibility
         const pt = await import('pmtiles')
-        Protocol = pt.Protocol
+        Protocol = pt.Protocol as { new(): { tile: unknown } }
     }
 }
 
@@ -119,7 +165,7 @@ export function MapView({
     }
 }: MapViewProps = {}) {
     const mapContainer = useRef<HTMLDivElement>(null)
-    const map = useRef<maplibregl.Map | null>(null)
+    const map = useRef<MapInstance | null>(null)
     const [layers, setLayers] = useState<LayerConfig[]>(initialLayers || [])
     const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
     const [baseStyle, setBaseStyle] = useState<'dark' | 'satellite'>(baseMapConfigs.defaultStyle as 'dark' | 'satellite')
@@ -195,18 +241,19 @@ export function MapView({
         const features = map.current.queryRenderedFeatures({ layers: interactiveLayers })
 
         // Filter features within bounds
-        const filtered = features.filter(feature => {
+        const filtered = features.filter((feature: MapFeature) => {
             if (feature.geometry.type === 'Point') {
-                const [lng, lat] = feature.geometry.coordinates
+                const coords = feature.geometry.coordinates as [number, number]
+                const [lng, lat] = coords
                 return lng >= bounds.minLng && lng <= bounds.maxLng && lat >= bounds.minLat && lat <= bounds.maxLat
             }
             return true // For now, include all non-point features
         })
 
-        return filtered.map(f => ({
+        return filtered.map((f: MapFeature) => ({
             id: f.id as string,
-            properties: f.properties || {},
-            geometry: f.geometry as any
+            properties: (f.properties || {}) as Record<string, unknown>,
+            geometry: f.geometry
         }))
     }
 
@@ -369,7 +416,7 @@ export function MapView({
         )
 
         // Helper to check if a point is strictly within the drawn shape (Screen Space)
-        const isPointInShape = (screenPoint: maplibregl.Point): boolean => {
+        const isPointInShape = (screenPoint: { x: number; y: number }): boolean => {
             if (bounds.type === 'rectangle') {
                 return screenPoint.x >= minX && screenPoint.x <= maxX &&
                     screenPoint.y >= minY && screenPoint.y <= maxY
@@ -388,24 +435,29 @@ export function MapView({
             return false
         }
 
-        const filtered = candidates.filter(feature => {
-            const geom = feature.geometry as any
+        const filtered = candidates.filter((feature: MapFeature) => {
+            const geom = feature.geometry
 
             if (geom.type === 'Point') {
-                const [lng, lat] = geom.coordinates
+                const coords = geom.coordinates as [number, number]
+                const [lng, lat] = coords
                 const screenPoint = map.current!.project([lng, lat])
                 return isPointInShape(screenPoint)
             } else if (geom.type === 'LineString') {
                 // Check if any point of the line is within bounds
-                return geom.coordinates.some((coord: number[]) => {
-                    const screenPoint = map.current!.project([coord[0], coord[1]])
+                const lineCoords = geom.coordinates as [number, number][]
+                return lineCoords.some((coord: number[]) => {
+                    const screenPoint = map.current!.project([coord[0], coord[1]] as [number, number])
                     return isPointInShape(screenPoint)
                 })
             } else if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
                 // Check if any vertex is within bounds
-                const coords = geom.type === 'Polygon' ? geom.coordinates[0] : geom.coordinates[0][0]
+                const polyCoords = geom.coordinates as number[][][] | number[][][][]
+                const coords = geom.type === 'Polygon'
+                    ? (polyCoords as number[][][])[0]
+                    : (polyCoords as number[][][][])[0][0]
                 return coords.some((coord: number[]) => {
-                    const screenPoint = map.current!.project([coord[0], coord[1]])
+                    const screenPoint = map.current!.project([coord[0], coord[1]] as [number, number])
                     return isPointInShape(screenPoint)
                 })
             }
@@ -418,16 +470,16 @@ export function MapView({
         layers.forEach(l => layerNameMap.set(l.id, l.name))
 
         const uniqueFeatures = new Map<string, Feature>()
-        filtered.forEach(f => {
-            const id = f.id as string || f.properties?.name
-            const sourceLayerId = (f as any).layer?.id || ''
+        filtered.forEach((f: MapFeature) => {
+            const id = String(f.id) || (f.properties?.name as string)
+            const sourceLayerId = f.layer?.id || ''
             const layerName = layerNameMap.get(sourceLayerId) || 'Unknown Layer'
 
             if (id && !uniqueFeatures.has(id)) {
                 uniqueFeatures.set(id, {
                     id: id,
-                    properties: f.properties || {},
-                    geometry: f.geometry as any,
+                    properties: (f.properties || {}) as Record<string, unknown>,
+                    geometry: f.geometry,
                     layerName: layerName
                 })
             }
@@ -484,7 +536,7 @@ export function MapView({
         const initMap = async () => {
             await loadMapLibre()
 
-            if (!maplibregl) return
+            if (!maplibregl || !Protocol) return
 
             // Initialize PMTiles protocol
             const protocol = new Protocol()
@@ -636,7 +688,7 @@ export function MapView({
     }
 
     const setupInteractivity = () => {
-        if (!map.current || layers.length === 0) return
+        if (!map.current || layers.length === 0 || !maplibregl) return
 
         const interactiveLayers = layers.filter(l => l.type !== 'symbol').map(l => l.id)
         if (interactiveLayers.length === 0) return

@@ -1,13 +1,17 @@
 /**
  * Example usage of the modular MapView component
- * 
+ *
  * The MapView component now accepts dynamic layer configuration,
  * base map styles, and selection callbacks for a fully modular implementation.
+ *
+ * Note: The LayerConfig schema uses snake_case properties to match the
+ * backend configuration format (e.g., data_url, source_type, source_layer).
  */
 
 import { MapView, LayerConfig } from './map-view'
 
 // Example 1: Using default configuration (backward compatible)
+// When no layers are provided, MapView fetches config from /api/layers
 export function MapViewDefault() {
   return <MapView />
 }
@@ -16,11 +20,11 @@ export function MapViewDefault() {
 export function MapViewCustom() {
   const customLayers: LayerConfig[] = [
     {
-      id: 'polygons',
+      id: 'lease-blocks',
       name: 'Lease Blocks',
       type: 'fill',
-      source: 'http://localhost:5002/api/geojson/lease_blocks.geojson',
-      sourceType: 'geojson',
+      data_url: '/api/geojson/lease_blocks.geojson',
+      source_type: 'geojson',
       visible: true,
       paint: {
         'fill-color': '#22c55e',
@@ -29,11 +33,11 @@ export function MapViewCustom() {
       zIndex: 1,
     },
     {
-      id: 'lines',
+      id: 'pipelines',
       name: 'Pipelines',
       type: 'line',
-      source: 'http://localhost:5002/api/geojson/pipelines.geojson',
-      sourceType: 'geojson',
+      data_url: '/api/geojson/pipelines.geojson',
+      source_type: 'geojson',
       visible: true,
       paint: {
         'line-color': '#ef4444',
@@ -42,11 +46,11 @@ export function MapViewCustom() {
       zIndex: 2,
     },
     {
-      id: 'points',
+      id: 'alerts',
       name: 'Active Alerts',
       type: 'circle',
-      source: 'http://localhost:5002/api/geojson/alerts.geojson',
-      sourceType: 'geojson',
+      data_url: '/api/geojson/alerts.geojson',
+      source_type: 'geojson',
       visible: true,
       paint: {
         'circle-radius': 8,
@@ -69,10 +73,6 @@ export function MapViewCustom() {
 
 // Example 3: With custom base map styles
 export function MapViewCustomStyles() {
-  const customLayers: LayerConfig[] = [
-    // ... layer config
-  ]
-
   const customBaseMapConfigs = {
     styles: [
       { id: 'dark', name: 'Dark/Analytical', url: '/styles/dark.json' },
@@ -84,7 +84,6 @@ export function MapViewCustomStyles() {
 
   return (
     <MapView
-      layers={customLayers}
       baseMapConfigs={customBaseMapConfigs}
       center={[-90.0, 27.5]}
       zoom={5}
@@ -96,16 +95,16 @@ export function MapViewCustomStyles() {
 export function MapViewWithPMTiles() {
   const pmtilesLayers: LayerConfig[] = [
     {
-      id: 'pmtiles-polygons',
-      name: 'Large Polygon Dataset',
-      type: 'fill',
-      source: 'data/large-dataset.pmtiles',
-      sourceType: 'pmtiles',
-      sourceLayer: 'polygons',
+      id: 'wellbores-pmtiles',
+      name: 'Wellbores (PMTiles)',
+      type: 'circle',
+      data_url: '/api/pmtiles/wellbores.pmtiles',
+      source_type: 'pmtiles',
+      source_layer: 'wellbores',
       visible: true,
       paint: {
-        'fill-color': '#22c55e',
-        'fill-opacity': 0.4,
+        'circle-radius': 5,
+        'circle-color': '#22c55e',
       },
       zIndex: 1,
     },

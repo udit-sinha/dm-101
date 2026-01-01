@@ -1,5 +1,36 @@
 // Geometry utilities for spatial selection (no external dependencies)
 
+// Local GeoJSON type definitions to avoid external dependencies
+export namespace GeoJSON {
+    export interface Feature<G extends Geometry = Geometry> {
+        type: 'Feature'
+        properties: Record<string, unknown> | null
+        geometry: G
+    }
+
+    export type Geometry = Point | LineString | Polygon | MultiPolygon
+
+    export interface Point {
+        type: 'Point'
+        coordinates: [number, number]
+    }
+
+    export interface LineString {
+        type: 'LineString'
+        coordinates: [number, number][]
+    }
+
+    export interface Polygon {
+        type: 'Polygon'
+        coordinates: [number, number][][]
+    }
+
+    export interface MultiPolygon {
+        type: 'MultiPolygon'
+        coordinates: [number, number][][][]
+    }
+}
+
 export interface LngLat {
     lng: number
     lat: number
