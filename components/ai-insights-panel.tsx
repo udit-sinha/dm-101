@@ -13,6 +13,7 @@ export interface AIInsightsPanelProps {
     responses?: { role: 'user' | 'assistant'; content: string }[]
     isLoading?: boolean
     className?: string
+    analyticalMapping?: Record<string, any>
 }
 
 export function AIInsightsPanel({
@@ -21,7 +22,8 @@ export function AIInsightsPanel({
     onQuerySubmit,
     responses = [],
     isLoading = false,
-    className
+    className,
+    analyticalMapping
 }: AIInsightsPanelProps) {
     const [query, setQuery] = useState('')
 
@@ -39,6 +41,8 @@ export function AIInsightsPanel({
     }
 
     if (!isOpen) return null
+
+    const analyticsColumn = analyticalMapping?.['analytics-column']
 
     return (
         <div className={cn(
@@ -64,9 +68,19 @@ export function AIInsightsPanel({
                         <div className="space-y-2 text-sm text-muted-foreground">
                             <p>Try asking:</p>
                             <ul className="list-disc list-inside space-y-1 text-xs">
-                                <li>What's the average depth of selected wells?</li>
-                                <li>Which platforms have the highest production?</li>
-                                <li>Show me trends in the last 30 days</li>
+                                {analyticsColumn ? (
+                                    <>
+                                        <li>Analyze the distribution of {analyticsColumn}</li>
+                                        <li>Summarize findings based on {analyticsColumn}</li>
+                                        <li>What are the top values for {analyticsColumn}?</li>
+                                    </>
+                                ) : (
+                                    <>
+                                        <li>What's the average depth of selected wells?</li>
+                                        <li>Which platforms have the highest production?</li>
+                                        <li>Show me trends in the last 30 days</li>
+                                    </>
+                                )}
                                 <li>Summarize the selected features</li>
                             </ul>
                         </div>

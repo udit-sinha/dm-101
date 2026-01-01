@@ -11,17 +11,6 @@ import { ChevronUp, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Legend } from './legend'
 
-const WELL_STATUS_ITEMS = [
-    { label: 'Oil', color: '#22c55e' },
-    { label: 'Gas', color: '#ef4444' },
-    { label: 'Oil and Gas', color: '#8b5cf6' },
-    { label: 'Dry Hole', color: '#6b7280' },
-    { label: 'Plugged/Abandoned', color: '#f59e0b' },
-    { label: 'Injection', color: '#3b82f6' },
-    { label: 'Suspended', color: '#eab308' },
-    { label: 'Other', color: '#9ca3af' }
-]
-
 // Dynamically import maplibre-gl to avoid SSR issues
 let maplibregl: any = null
 let Protocol: any = null
@@ -47,18 +36,38 @@ export interface Feature {
     layerName?: string
 }
 
+export interface TooltipField {
+    field: string
+    label: string
+    unit?: string
+    priority?: number
+}
+
+export interface AnalyticalMapping {
+    'analytics-column'?: string
+    'colorscheme-included'?: boolean
+}
+
+export interface LegendItem {
+    label: string
+    color: string
+}
+
 export interface LayerConfig {
     id: string
     name: string
     type: 'fill' | 'line' | 'circle' | 'symbol'
-    source: string
-    sourceType: 'geojson' | 'pmtiles'
-    dataUrl?: string  // URL to fetch GeoJSON data from
-    sourceLayer?: string
+    source_type: 'geojson' | 'pmtiles'
+    data_url?: string
+    source_layer?: string
     visible: boolean
     paint?: Record<string, any>
     layout?: Record<string, any>
     zIndex?: number
+    tooltip_fields?: TooltipField[]
+    analytical_mapping?: AnalyticalMapping
+    legend_items?: LegendItem[]
+    legend_column?: string
 }
 
 export interface UIPositionConfig {
@@ -83,101 +92,7 @@ export interface MapViewProps {
     uiPositions?: UIPositionConfig
 }
 
-// Default layer configuration for backward compatibility
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002'
-
-const DEFAULT_LAYERS: LayerConfig[] = [
-    {
-        id: 'polygons',
-        name: 'Lease Blocks',
-        type: 'fill',
-        source: 'lease-blocks',
-        sourceType: 'geojson',
-        dataUrl: `${API_BASE_URL}/api/geojson/lease_blocks.geojson`,
-        visible: true,
-        paint: {
-            'fill-color': [
-                'case',
-                ['==', ['get', 'status'], 'Producing'], '#22c55e',
-                ['==', ['get', 'status'], 'Development'], '#f59e0b',
-                ['==', ['get', 'status'], 'Exploration'], '#3b82f6',
-                '#6b7280'
-            ],
-            'fill-opacity': 0.4,
-        },
-        zIndex: 1,
-    },
-    {
-        id: 'polygons-outline',
-        name: 'Lease Blocks Outline',
-        type: 'line',
-        source: 'lease-blocks',
-        sourceType: 'geojson',
-        visible: true,
-        paint: {
-            'line-color': '#ffffff',
-            'line-width': 1,
-            'line-opacity': 0.6
-        },
-        zIndex: 2,
-    },
-    {
-        id: 'lines',
-        name: 'Pipelines',
-        type: 'line',
-        source: 'pipelines',
-        sourceType: 'geojson',
-        dataUrl: `${API_BASE_URL}/api/geojson/pipelines.geojson`,
-        visible: true,
-        paint: {
-            'line-color': [
-                'case',
-                ['==', ['get', 'type'], 'Oil Export'], '#ef4444',
-                ['==', ['get', 'type'], 'Gas Export'], '#8b5cf6',
-                ['==', ['get', 'type'], 'Interfield'], '#06b6d4',
-                '#f59e0b'
-            ],
-            'line-width': 3,
-        },
-        zIndex: 3,
-    },
-    {
-        id: 'points',
-        name: 'Wellbores',
-        type: 'circle',
-        source: 'wellbores',
-        sourceType: 'pmtiles',
-        dataUrl: `${API_BASE_URL}/api/pmtiles/wellbores.pmtiles`,
-        // Important: layer name in the vector tile source. 
-        // Tippecanoe uses the layer name passed with -l flag or default to filename basename "wellbores"
-        sourceLayer: 'wellbores',
-        visible: true,
-        paint: {
-            'circle-radius': [
-                'interpolate', ['linear'], ['zoom'],
-                4, 2.5,
-                10, 4.5,
-                14, 7
-            ],
-            'circle-color': [
-                'match',
-                ['get', 'status'],
-                'Oil', '#22c55e',            // Green
-                'Gas', '#ef4444',            // Red
-                'Oil and Gas', '#8b5cf6',    // Purple
-                'Dry Hole', '#6b7280',       // Gray
-                'Plugged/Abandoned', '#f59e0b', // Orange
-                'Injection', '#3b82f6',      // Blue
-                'Suspended', '#eab308',      // Yellow
-                '#9ca3af'                    // Default Gray
-            ],
-            'circle-stroke-color': '#000000',
-            'circle-stroke-width': 0,
-            'circle-stroke-opacity': 0
-        },
-        zIndex: 4,
-    },
-]
 
 const DEFAULT_BASE_MAP_CONFIGS = {
     styles: [
@@ -188,7 +103,7 @@ const DEFAULT_BASE_MAP_CONFIGS = {
 }
 
 export function MapView({
-    layers = DEFAULT_LAYERS,
+    layers: initialLayers,
     baseMapConfigs = DEFAULT_BASE_MAP_CONFIGS,
     enableSelection = true,
     enableDrawSelection = true,
@@ -205,11 +120,10 @@ export function MapView({
 }: MapViewProps = {}) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<maplibregl.Map | null>(null)
+    const [layers, setLayers] = useState<LayerConfig[]>(initialLayers || [])
     const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
     const [baseStyle, setBaseStyle] = useState<'dark' | 'satellite'>(baseMapConfigs.defaultStyle as 'dark' | 'satellite')
-    const [visibleLayers, setVisibleLayers] = useState<Record<string, boolean>>(
-        layers.reduce((acc, layer) => ({ ...acc, [layer.id]: layer.visible }), {})
-    )
+    const [visibleLayers, setVisibleLayers] = useState<Record<string, boolean>>({})
     const [drawMode, setDrawMode] = useState<DrawMode>('none')
     const [selectedFeatures, setSelectedFeatures] = useState<Feature[]>([])
     const [isDrawing, setIsDrawing] = useState(false)
@@ -219,6 +133,28 @@ export function MapView({
     const [hiddenStatuses, setHiddenStatuses] = useState<string[]>([])
     const drawStartPoint = useRef<{ x: number; y: number } | null>(null)
     const drawCanvas = useRef<HTMLCanvasElement | null>(null)
+
+    // Fetch layers from API
+    useEffect(() => {
+        if (initialLayers) return
+
+        const fetchLayers = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/layers`)
+                const data = await response.json()
+                if (data.layers) {
+                    setLayers(data.layers)
+                    setVisibleLayers(
+                        data.layers.reduce((acc: any, layer: LayerConfig) => ({ ...acc, [layer.id]: layer.visible }), {})
+                    )
+                }
+            } catch (error) {
+                console.error('Failed to fetch map layers:', error)
+            }
+        }
+
+        fetchLayers()
+    }, [initialLayers])
 
     // Helper to get position classes for UI elements
     const getPositionClasses = (pos?: string, type: 'drawer' | 'toolbar' = 'toolbar') => {
@@ -293,18 +229,19 @@ export function MapView({
 
     // Apply status filter when hiddenStatuses changes
     useEffect(() => {
-        if (!map.current || !map.current.getLayer('points')) return
+        if (!map.current) return
 
-        const filter: any[] = ['!in', 'status', ...hiddenStatuses]
-
-        try {
-            // If Other is hidden, we might need more complex logic since 'status' might match nothing or fallback
-            // But for now simple exclusion works if the data has 'status' property
-            map.current.setFilter('points', hiddenStatuses.length > 0 ? (filter as any) : null)
-        } catch (err) {
-            console.error('Error setting filter:', err)
-        }
-    }, [hiddenStatuses])
+        layers.forEach(layer => {
+            if (layer.legend_items && layer.legend_column && map.current?.getLayer(layer.id)) {
+                const filter: any[] = ['!in', layer.legend_column, ...hiddenStatuses]
+                try {
+                    map.current?.setFilter(layer.id, hiddenStatuses.length > 0 ? (filter as any) : null)
+                } catch (err) {
+                    console.error(`Error setting filter for layer ${layer.id}:`, err)
+                }
+            }
+        })
+    }, [hiddenStatuses, layers])
 
     // Clear selection and restore previous map state
     const handleClearSelection = () => {
@@ -484,7 +421,7 @@ export function MapView({
         filtered.forEach(f => {
             const id = f.id as string || f.properties?.name
             const sourceLayerId = (f as any).layer?.id || ''
-            const layerName = layerNameMap.get(sourceLayerId) || (f.geometry.type === 'Point' ? 'Active Alerts' : f.geometry.type === 'LineString' ? 'Pipelines' : 'Lease Blocks')
+            const layerName = layerNameMap.get(sourceLayerId) || 'Unknown Layer'
 
             if (id && !uniqueFeatures.has(id)) {
                 uniqueFeatures.set(id, {
@@ -508,29 +445,34 @@ export function MapView({
 
     // Add sources dynamically based on layer configuration
     const addSources = () => {
-        if (!map.current) return
+        if (!map.current || layers.length === 0) return
 
         const uniqueSources = new Map<string, LayerConfig>()
         layers.forEach(layer => {
-            // Only add source once per unique source ID
-            if (!uniqueSources.has(layer.source) && layer.dataUrl) {
-                uniqueSources.set(layer.source, layer)
+            const sourceId = layer.id // Using layer.id as sourceId for simplicity if not specified
+            if (!uniqueSources.has(sourceId) && layer.data_url) {
+                uniqueSources.set(sourceId, layer)
             }
         })
 
         uniqueSources.forEach((layer, sourceId) => {
             if (map.current?.getSource(sourceId)) return
 
-            if (layer.sourceType === 'geojson' && layer.dataUrl) {
+            // Ensure data_url is absolute if it starts with /api
+            const absoluteUrl = layer.data_url?.startsWith('/api') 
+                ? `${API_BASE_URL}${layer.data_url}` 
+                : layer.data_url
+
+            if (layer.source_type === 'geojson' && absoluteUrl) {
                 map.current?.addSource(sourceId, {
                     type: 'geojson',
-                    data: layer.dataUrl,
+                    data: absoluteUrl,
                     promoteId: 'id'
                 })
-            } else if (layer.sourceType === 'pmtiles' && layer.dataUrl) {
+            } else if (layer.source_type === 'pmtiles' && absoluteUrl) {
                 map.current?.addSource(sourceId, {
                     type: 'vector',
-                    url: `pmtiles://${layer.dataUrl}`,
+                    url: `pmtiles://${absoluteUrl}`,
                 })
             }
         })
@@ -581,10 +523,10 @@ export function MapView({
                 maplibregl.removeProtocol('pmtiles')
             }
         }
-    }, [])
+    }, [layers]) // Re-init or update when layers are loaded
 
     const addLayers = () => {
-        if (!map.current) return
+        if (!map.current || layers.length === 0) return
 
         // Sort layers by zIndex for proper rendering order
         const sortedLayers = [...layers].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
@@ -596,11 +538,11 @@ export function MapView({
             const layerDef: any = {
                 id: layerConfig.id,
                 type: layerConfig.type,
-                source: layerConfig.source,
+                source: layerConfig.id, // Using layer.id as sourceId
             }
 
-            if (layerConfig.sourceLayer) {
-                layerDef['source-layer'] = layerConfig.sourceLayer
+            if (layerConfig.source_layer) {
+                layerDef['source-layer'] = layerConfig.source_layer
             }
 
             if (layerConfig.paint) {
@@ -621,15 +563,12 @@ export function MapView({
         // Add highlight layers for selection (blue fill/stroke for all geometry types)
         if (enableSelection) {
             // Point highlight layer
-            if (!map.current.getLayer('selection-highlight-points')) {
-                const pointLayer = layers.find(l => l.id === 'points')
-                const pointSource = pointLayer?.source || 'wellbores'
-                const pointSourceLayer = pointLayer?.sourceLayer
-
+            const pointLayer = layers.find(l => l.type === 'circle')
+            if (pointLayer && !map.current.getLayer('selection-highlight-points')) {
                 const highlightLayerDef: any = {
                     id: 'selection-highlight-points',
                     type: 'circle',
-                    source: pointSource,
+                    source: pointLayer.id,
                     filter: ['in', 'uid', ''],
                     paint: {
                         'circle-radius': [
@@ -645,22 +584,20 @@ export function MapView({
                     },
                 }
 
-                if (pointSourceLayer) {
-                    highlightLayerDef['source-layer'] = pointSourceLayer
+                if (pointLayer.source_layer) {
+                    highlightLayerDef['source-layer'] = pointLayer.source_layer
                 }
 
                 map.current.addLayer(highlightLayerDef)
             }
 
             // Line highlight layer - must be on top
-            if (!map.current.getLayer('selection-highlight-lines')) {
-                // Find the main lines layer (not the outline)
-                const lineLayer = layers.find(l => l.id === 'lines')
-                const lineSource = lineLayer?.source || 'pipelines'
+            const lineLayer = layers.find(l => l.type === 'line')
+            if (lineLayer && !map.current.getLayer('selection-highlight-lines')) {
                 map.current.addLayer({
                     id: 'selection-highlight-lines',
                     type: 'line',
-                    source: lineSource,
+                    source: lineLayer.id,
                     filter: ['in', 'name', ''],
                     paint: {
                         'line-color': '#3b82f6',  // Blue
@@ -671,37 +608,35 @@ export function MapView({
             }
 
             // Polygon highlight layer
-            if (!map.current.getLayer('selection-highlight-polygons')) {
-                const polySource = layers.find(l => l.type === 'fill')?.source
-                if (polySource) {
-                    map.current.addLayer({
-                        id: 'selection-highlight-polygons',
-                        type: 'fill',
-                        source: polySource,
-                        filter: ['in', 'name', ''],
-                        paint: {
-                            'fill-color': '#3b82f6',  // Blue fill
-                            'fill-opacity': 0.4,
-                        },
-                    })
-                    // Add polygon outline
-                    map.current.addLayer({
-                        id: 'selection-highlight-polygons-outline',
-                        type: 'line',
-                        source: polySource,
-                        filter: ['in', 'name', ''],
-                        paint: {
-                            'line-color': '#1d4ed8',
-                            'line-width': 2,
-                        },
-                    })
-                }
+            const fillLayer = layers.find(l => l.type === 'fill')
+            if (fillLayer && !map.current.getLayer('selection-highlight-polygons')) {
+                map.current.addLayer({
+                    id: 'selection-highlight-polygons',
+                    type: 'fill',
+                    source: fillLayer.id,
+                    filter: ['in', 'name', ''],
+                    paint: {
+                        'fill-color': '#3b82f6',  // Blue fill
+                        'fill-opacity': 0.4,
+                    },
+                })
+                // Add polygon outline
+                map.current.addLayer({
+                    id: 'selection-highlight-polygons-outline',
+                    type: 'line',
+                    source: fillLayer.id,
+                    filter: ['in', 'name', ''],
+                    paint: {
+                        'line-color': '#1d4ed8',
+                        'line-width': 2,
+                    },
+                })
             }
         }
     }
 
     const setupInteractivity = () => {
-        if (!map.current) return
+        if (!map.current || layers.length === 0) return
 
         const interactiveLayers = layers.filter(l => l.type !== 'symbol').map(l => l.id)
         if (interactiveLayers.length === 0) return
@@ -723,11 +658,33 @@ export function MapView({
                 const props = feature.properties || {}
                 const layerConfig = layers.find(l => l.id === feature.layer.id)
 
-                // Build tooltip content - show first few properties
-                let content = `<strong>${props.name || props.block_name || 'Feature'}</strong>`
-                if (layerConfig?.name) {
-                    content += `<br/><small>${layerConfig.name}</small>`
+                // Build dynamic tooltip content based on config
+                let content = `<div class="p-2 min-w-[150px]">`
+                
+                if (layerConfig?.tooltip_fields && layerConfig.tooltip_fields.length > 0) {
+                    // Sort by priority if available
+                    const sortedFields = [...layerConfig.tooltip_fields].sort((a, b) => (a.priority || 99) - (b.priority || 99))
+                    
+                    content += `<div class="font-bold border-b border-border pb-1 mb-1 text-sm">${props[sortedFields[0].field] || 'Feature Details'}</div>`
+                    
+                    sortedFields.slice(1).forEach(field => {
+                        const val = props[field.field]
+                        if (val !== undefined && val !== null) {
+                            content += `<div class="flex justify-between gap-4 text-xs">
+                                <span class="text-muted-foreground">${field.label}:</span>
+                                <span class="font-medium">${val}${field.unit ? ' ' + field.unit : ''}</span>
+                            </div>`
+                        }
+                    })
+                } else {
+                    // Fallback to default name/status
+                    content += `<div class="font-bold text-sm">${props.name || props.block_name || props.well_name || 'Feature'}</div>`
+                    if (props.status) {
+                        content += `<div class="text-xs text-muted-foreground">${props.status}</div>`
+                    }
                 }
+                
+                content += `</div>`
 
                 popup.setLngLat(e.lngLat)
                     .setHTML(content)
@@ -753,29 +710,8 @@ export function MapView({
                 setSelectedFeature(selectedFeat)
                 onFeatureSelect?.(selectedFeat)
 
-                // Update highlight filter handled via state change -> useEffect? 
-                // No, we handle it explicitly here via direct map manipulation for performance
-
-                // For single click, we just call the update function with one feature
-                if (map.current && map.current.getLayer('selection-highlight-points')) {
-                    const uid = selectedFeat.properties.uid || selectedFeat.id
-                    map.current.setFilter('selection-highlight-points', ['in', 'uid', uid])
-                }
-
-                // For other layers (fallback)
-                if (feature.source !== 'wellbores') {
-                    map.current.setFilter('selection-highlight-lines', ['in', 'name', feature.properties?.name || ''])
-                    // ... others handled by updateSelectionHighlight called by setSelectedFeature?
-                    // setSelectedFeature updates state. Does it trigger effect?
-                    // No, map-view usually responds to state changes or direct calls.
-                    // Here we call updateSelectionHighlight explicitly in other places.
-                }
-
-                // Actually, just call the shared function!
+                // Update highlight filter
                 updateSelectionHighlight([selectedFeat])
-                if (map.current && map.current.getLayer('highlight')) {
-                    map.current.setFilter('highlight', ['==', ['get', 'name'], feature.properties?.name || ''])
-                }
             }
         })
 
@@ -891,50 +827,34 @@ export function MapView({
                 </div>
 
                 {/* Legend - Bottom Center */}
-                {showLegend && visibleLayers['points'] !== false && (
-                    <Legend
-                        items={WELL_STATUS_ITEMS}
-                        hiddenItems={hiddenStatuses}
-                        onToggleItem={toggleStatus}
-                        onClose={() => setShowLegend(false)}
-                    />
-                )}
-
-                {/* Toggle Feature Details Button - Bottom Right */}
-                {selectedFeatures.length > 0 && (
-                    <button
-                        onClick={() => setShowDetailsPanel(!showDetailsPanel)}
-                        className={cn(
-                            "absolute right-4 bottom-6 z-20 h-10 w-10 flex items-center justify-center rounded-md transition-all",
-                            "border-2 shadow-lg backdrop-blur-md",
-                            showDetailsPanel
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-white/30 bg-white/60 text-foreground hover:border-white/50 hover:bg-white/70"
-                        )}
-                        title="Toggle feature details"
-                    >
-                        <ChevronUp className={cn("h-4 w-4 transition-transform", showDetailsPanel && "rotate-180")} />
-                    </button>
-                )}
-
-                {/* Feature Details Bottom Panel */}
-                {showDetailsPanel && selectedFeatures.length > 0 && (
-                    <FeatureDetailsPanel
-                        features={selectedFeatures}
-                        onClose={() => {
-                            setShowDetailsPanel(false)
-                            handleClearSelection()
-                        }}
-                        onZoomTo={handleZoomToFeature}
-                        onZoomToAll={handleZoomToAll}
-                    />
-                )}
+                {(() => {
+                    if (!showLegend) return null;
+                    const legendLayer = [...layers]
+                        .filter(l => visibleLayers[l.id] && l.legend_items)
+                        .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))[0];
+                    
+                    if (!legendLayer) return null;
+                    
+                    return (
+                        <Legend
+                            key={`legend-${legendLayer.id}`}
+                            items={legendLayer.legend_items!}
+                            hiddenItems={hiddenStatuses}
+                            onToggleItem={toggleStatus}
+                            onClose={() => setShowLegend(false)}
+                        />
+                    );
+                })()}
             </div>
 
             {/* AI Insights Panel - Right side */}
             <AIInsightsPanel
                 isOpen={showAIPanel}
                 onClose={() => setShowAIPanel(false)}
+                analyticalMapping={(() => {
+                    const activeLayer = layers.find(l => visibleLayers[l.id] && l.analytical_mapping)
+                    return activeLayer?.analytical_mapping
+                })()}
                 onQuerySubmit={(query) => {
                     console.log('AI Query:', query)
                     // TODO: Integrate with AI backend
