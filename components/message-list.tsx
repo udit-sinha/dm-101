@@ -2,8 +2,17 @@
 
 import type { ChatMessage, ArtifactSummary } from "@/lib/types/chat"
 import { ArtifactCard } from "./artifact-card"
-import { GoalTracker } from "./goal-tracker"
 import { ThinkingStream } from "./thinking-stream"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -63,13 +72,29 @@ export function MessageList({ messages, onArtifactClick }: MessageListProps) {
                       ? 'text-foreground'
                       : 'text-foreground/90'
                   }`}>
-                    {message.content}
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        table: ({node, ...props}) => (
+                          <div className="my-4 border rounded-md overflow-hidden bg-background/50">
+                            <Table {...props} />
+                          </div>
+                        ),
+                        thead: ({node, ...props}) => <TableHeader {...props} />,
+                        tbody: ({node, ...props}) => <TableBody {...props} />,
+                        tr: ({node, ...props}) => <TableRow {...props} />,
+                        th: ({node, ...props}) => <TableHead {...props} />,
+                        td: ({node, ...props}) => <TableCell {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                        a: ({node, ...props}) => <a className="text-primary underline underline-offset-4" {...props} />,
+                        ul: ({node, ...props}) => <ul className="my-2 list-disc pl-6" {...props} />,
+                        ol: ({node, ...props}) => <ol className="my-2 list-decimal pl-6" {...props} />,
+                        li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
                   </div>
-                )}
-
-                {/* Goal tracker */}
-                {message.goals && (
-                  <GoalTracker goal={message.goals} />
                 )}
 
                 {/* Artifacts - shown for non-conversational modes */}
