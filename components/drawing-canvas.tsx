@@ -46,11 +46,11 @@ export function DrawingCanvas({ isDrawing, drawMode, onDrawComplete }: DrawingCa
             ctx.fillRect(x, y, width, height)
             ctx.strokeRect(x, y, width, height)
         } else if (drawMode === 'circle') {
-            const centerX = (startPoint.x + currentPoint.x) / 2
-            const centerY = (startPoint.y + currentPoint.y) / 2
-            const radiusX = Math.abs(currentPoint.x - startPoint.x) / 2
-            const radiusY = Math.abs(currentPoint.y - startPoint.y) / 2
-            const radius = Math.max(radiusX, radiusY)
+            const centerX = startPoint.x
+            const centerY = startPoint.y
+            const dx = currentPoint.x - startPoint.x
+            const dy = currentPoint.y - startPoint.y
+            const radius = Math.sqrt(dx * dx + dy * dy)
 
             ctx.beginPath()
             ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)

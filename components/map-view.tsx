@@ -138,7 +138,7 @@ export interface MapViewProps {
     uiPositions?: UIPositionConfig
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
 const DEFAULT_BASE_MAP_CONFIGS = {
     styles: [
@@ -173,7 +173,7 @@ export function MapView({
     const [drawMode, setDrawMode] = useState<DrawMode>('none')
     const [selectedFeatures, setSelectedFeatures] = useState<Feature[]>([])
     const [isDrawing, setIsDrawing] = useState(false)
-    const [showDetailsPanel, setShowDetailsPanel] = useState(true)
+    const [showDetailsPanel, setShowDetailsPanel] = useState(false)
     const [showAIPanel, setShowAIPanel] = useState(false)
     const [showLegend, setShowLegend] = useState(true)
     const [hiddenStatuses, setHiddenStatuses] = useState<string[]>([])
@@ -262,6 +262,14 @@ export function MapView({
         setDrawMode(mode)
         drawModeRef.current = mode  // Update ref for event handlers
         setSelectedFeatures([])
+
+        // Save current map state before starting selection if we haven't already
+        if (mode !== 'none' && !savedMapState.current && map.current) {
+            savedMapState.current = {
+                center: map.current.getCenter().toArray() as [number, number],
+                zoom: map.current.getZoom()
+            }
+        }
     }
 
     // Toggle legend item visibility
@@ -279,7 +287,7 @@ export function MapView({
         if (!map.current) return
 
         layers.forEach(layer => {
-            if (layer.legend_items && layer.legend_column && map.current?.getLayer(layer.id)) {
+            if (layer.legend_items && layer.legend_column && map.current && map.current.getLayer(layer.id)) {
                 const filter: any[] = ['!in', layer.legend_column, ...hiddenStatuses]
                 try {
                     map.current?.setFilter(layer.id, hiddenStatuses.length > 0 ? (filter as any) : null)
@@ -293,9 +301,15 @@ export function MapView({
     // Clear selection and restore previous map state
     const handleClearSelection = () => {
         setSelectedFeatures([])
+        setShowDetailsPanel(false)
         setDrawMode('none')
         drawModeRef.current = 'none'
         updateSelectionHighlight([])  // Clear highlight
+
+        // Reset cursor
+        if (map.current) {
+            map.current.getCanvas().style.cursor = 'default'
+        }
 
         // Restore map to saved state before selection
         if (savedMapState.current && map.current) {
@@ -312,23 +326,23 @@ export function MapView({
     const updateSelectionHighlight = (features: Feature[]) => {
         if (!map.current) return
 
-        // Points (Wellbores) - Filter by UID or ID
+        // Points (Wellbores) - Filter by ID
         const pointFeatures = features.filter(f => f.geometry.type === 'Point')
-        const pointIds = pointFeatures.map(f => f.properties.uid || f.id).filter(val => val !== undefined && val !== null)
+        const pointIds = pointFeatures.map(f => f.id).filter(val => val !== undefined && val !== null)
         const pointFilter: any = pointIds.length > 0
-            ? ['in', 'uid', ...pointIds]
-            : ['in', 'uid', '']
+            ? ['in', ['id'], ['literal', pointIds]]
+            : ['in', ['id'], ['literal', []]]
 
         if (map.current.getLayer('selection-highlight-points')) {
             map.current.setFilter('selection-highlight-points', pointFilter)
         }
 
-        // Lines/Polygons - Filter by Name (Legacy fallback)
+        // Lines/Polygons - Filter by ID
         const nonPointFeatures = features.filter(f => f.geometry.type !== 'Point')
-        const names = nonPointFeatures.map(f => f.properties.name || f.id).filter(Boolean)
-        const nameFilter: any = names.length > 0
-            ? ['in', 'name', ...names]
-            : ['in', 'name', '']
+        const nonPointIds = nonPointFeatures.map(f => f.id).filter(val => val !== undefined && val !== null)
+        const nonPointFilter: any = nonPointIds.length > 0
+            ? ['in', ['id'], ['literal', nonPointIds]]
+            : ['in', ['id'], ['literal', []]]
 
         const nonPointLayers = [
             'selection-highlight-lines',
@@ -338,7 +352,7 @@ export function MapView({
 
         nonPointLayers.forEach(layerId => {
             if (map.current?.getLayer(layerId)) {
-                map.current.setFilter(layerId, nameFilter)
+                map.current.setFilter(layerId, nonPointFilter)
             }
         })
     }
@@ -388,49 +402,54 @@ export function MapView({
     }) => {
         if (!map.current) return
 
-        // Save current map state before selection (to restore on cancel)
-        if (!savedMapState.current) {
-            savedMapState.current = {
-                center: map.current.getCenter().toArray() as [number, number],
-                zoom: map.current.getZoom()
-            }
-        }
-
         console.log('Draw complete:', bounds.type)
 
         // Query rendered features within the bounding box of the selection
         // We use screen coordinates directly for the initial broad query
-        const minX = Math.min(bounds.startX, bounds.endX)
-        const maxX = Math.max(bounds.startX, bounds.endX)
-        const minY = Math.min(bounds.startY, bounds.endY)
-        const maxY = Math.max(bounds.startY, bounds.endY)
+        let queryMinX, queryMaxX, queryMinY, queryMaxY;
+
+        if (bounds.type === 'rectangle') {
+            queryMinX = Math.min(bounds.startX, bounds.endX)
+            queryMaxX = Math.max(bounds.startX, bounds.endX)
+            queryMinY = Math.min(bounds.startY, bounds.endY)
+            queryMaxY = Math.max(bounds.startY, bounds.endY)
+        } else {
+            // Circle: start is center, end is radius point
+            const radius = Math.sqrt(
+                Math.pow(bounds.endX - bounds.startX, 2) + 
+                Math.pow(bounds.endY - bounds.startY, 2)
+            )
+            queryMinX = bounds.startX - radius
+            queryMaxX = bounds.startX + radius
+            queryMinY = bounds.startY - radius
+            queryMaxY = bounds.startY + radius
+        }
 
         const interactiveLayerIds = layers
-            .filter(l => l.type !== 'symbol') // Exclude label layers
+            .filter(l => l.type !== 'symbol' && visibleLayers[l.id]) // Exclude label layers and hidden layers
             .map(l => l.id)
 
         // Use the bounding box to get candidate features efficiently
         const candidates = map.current.queryRenderedFeatures(
-            [[minX, minY], [maxX, maxY]],
+            [[queryMinX, queryMinY], [queryMaxX, queryMaxY]],
             { layers: interactiveLayerIds }
         )
 
         // Helper to check if a point is strictly within the drawn shape (Screen Space)
         const isPointInShape = (screenPoint: { x: number; y: number }): boolean => {
             if (bounds.type === 'rectangle') {
-                return screenPoint.x >= minX && screenPoint.x <= maxX &&
-                    screenPoint.y >= minY && screenPoint.y <= maxY
+                return screenPoint.x >= queryMinX && screenPoint.x <= queryMaxX &&
+                    screenPoint.y >= queryMinY && screenPoint.y <= queryMaxY
             } else if (bounds.type === 'circle') {
-                const centerX = (bounds.startX + bounds.endX) / 2
-                const centerY = (bounds.startY + bounds.endY) / 2
-                // DrawingCanvas uses max dimension for radius (perfect circle)
-                const radiusX = Math.abs(bounds.endX - bounds.startX) / 2
-                const radiusY = Math.abs(bounds.endY - bounds.startY) / 2
-                const radius = Math.max(radiusX, radiusY)
+                const centerX = bounds.startX
+                const centerY = bounds.startY
+                const dx = bounds.endX - bounds.startX
+                const dy = bounds.endY - bounds.startY
+                const radius = Math.sqrt(dx * dx + dy * dy)
 
-                const dx = screenPoint.x - centerX
-                const dy = screenPoint.y - centerY
-                return (dx * dx + dy * dy) <= (radius * radius)
+                const distDx = screenPoint.x - centerX
+                const distDy = screenPoint.y - centerY
+                return (distDx * distDx + distDy * distDy) <= (radius * radius)
             }
             return false
         }
@@ -464,18 +483,18 @@ export function MapView({
             return false
         })
 
-
         // Create a map from source/layer ID to layer name
         const layerNameMap = new Map<string, string>()
         layers.forEach(l => layerNameMap.set(l.id, l.name))
 
         const uniqueFeatures = new Map<string, Feature>()
-        filtered.forEach((f: MapFeature) => {
-            const id = String(f.id) || (f.properties?.name as string)
+        filtered.forEach((f: MapFeature, idx: number) => {
+            // Try to find a unique ID from various possible fields
+            const id = String(f.id !== undefined ? f.id : (f.properties?.uid || f.properties?.id || f.properties?.name || `feat-${idx}`))
             const sourceLayerId = f.layer?.id || ''
             const layerName = layerNameMap.get(sourceLayerId) || 'Unknown Layer'
 
-            if (id && !uniqueFeatures.has(id)) {
+            if (!uniqueFeatures.has(id)) {
                 uniqueFeatures.set(id, {
                     id: id,
                     properties: (f.properties || {}) as Record<string, unknown>,
@@ -550,6 +569,7 @@ export function MapView({
                 zoom: zoom,
                 pitch: 0,
                 bearing: 0,
+                attributionControl: false,
             })
 
             // Add sources and layers on map load
@@ -912,6 +932,15 @@ export function MapView({
                     // TODO: Integrate with AI backend
                 }}
             />
+
+            {/* Feature Details Panel - Bottom */}
+            {showDetailsPanel && selectedFeatures.length > 0 && (
+                <FeatureDetailsPanel
+                    features={selectedFeatures}
+                    onClose={handleClearSelection}
+                    onZoomTo={handleZoomToFeature}
+                />
+            )}
         </div>
     )
 }
