@@ -3,19 +3,24 @@
 import { PromptForm } from "./prompt-form"
 import { MessageList } from "./message-list"
 import { useEffect, useRef } from "react"
-import type { ChatMessage, ArtifactSummary } from "@/lib/types/chat"
 
 type AgentMode = "auto" | "fast" | "research" | "data-quality"
 
-interface ChatAreaProps {
-  messages: ChatMessage[]
-  onSubmit: (data: { message: string; mode?: AgentMode; context?: any[] }) => void
-  onArtifactClick: (artifact: ArtifactSummary) => void
-  isLoading?: boolean
-  onCancel?: () => void
+interface Message {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  progress?: any
+  artifact?: { type: string; content: string }
 }
 
-export function ChatArea({ messages, onSubmit, onArtifactClick, isLoading, onCancel }: ChatAreaProps) {
+interface ChatAreaProps {
+  messages: Message[]
+  onSubmit: (data: { message: string; mode: AgentMode; context: any[] }) => void
+  onArtifactClick: (artifact: { type: string; content: string }) => void
+}
+
+export function ChatArea({ messages, onSubmit, onArtifactClick }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
@@ -35,7 +40,7 @@ export function ChatArea({ messages, onSubmit, onArtifactClick, isLoading, onCan
 
       <div className="p-6 shrink-0">
         <div className="max-w-3xl mx-auto">
-          <PromptForm onSubmit={onSubmit} isLoading={isLoading} onCancel={onCancel} />
+          <PromptForm onSubmit={onSubmit} />
         </div>
       </div>
     </div>
