@@ -1,82 +1,61 @@
 'use client'
 
 import { ArtifactSummary } from '@/lib/types/chat'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { ChevronRight, BarChart3, BookOpen, Database, Link2, Map } from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { ChevronRight, FileText, BarChart3, Search, Database, Folder } from 'lucide-react'
 
 interface ArtifactCardProps {
-  artifact: ArtifactSummary
-  onSelect?: (artifact: ArtifactSummary) => void
+    artifact: ArtifactSummary
+    onSelect?: (artifact: ArtifactSummary) => void
 }
 
-const artifactIcons: Record<string, React.ReactNode> = {
-  analytics: <BarChart3 className="w-4 h-4" />,
-  research: <BookOpen className="w-4 h-4" />,
-  'data-quality': <Database className="w-4 h-4" />,
-  'entity-resolution': <Link2 className="w-4 h-4" />,
-  'goal-plan': <Map className="w-4 h-4" />,
-}
-
-const artifactColors: Record<string, string> = {
-  analytics: 'bg-blue-50 border-blue-200',
-  research: 'bg-purple-50 border-purple-200',
-  'data-quality': 'bg-orange-50 border-orange-200',
-  'entity-resolution': 'bg-green-50 border-green-200',
-  'goal-plan': 'bg-pink-50 border-pink-200',
-}
-
-const badgeVariants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  analytics: 'default',
-  research: 'secondary',
-  'data-quality': 'outline',
-  'entity-resolution': 'default',
-  'goal-plan': 'secondary',
+// Get icon based on artifact kind
+function getArtifactIcon(kind: string) {
+    switch (kind) {
+        case 'analytics':
+            return BarChart3
+        case 'research':
+            return Search
+        case 'data-quality':
+            return Database
+        case 'entity-resolution':
+            return Folder
+        default:
+            return FileText
+    }
 }
 
 export function ArtifactCard({ artifact, onSelect }: ArtifactCardProps) {
-  const createdDate = new Date(artifact.createdAt).toLocaleDateString()
+    const createdDate = new Date(artifact.createdAt).toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric'
+    })
 
-  return (
-    <Card
-      className={`cursor-pointer transition-all hover:shadow-md ${artifactColors[artifact.kind]}`}
-      onClick={() => onSelect?.(artifact)}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3 flex-1">
-            <div className="mt-1">{artifactIcons[artifact.kind]}</div>
-            <div className="flex-1">
-              <CardTitle className="text-base">{artifact.title}</CardTitle>
-              <CardDescription className="text-xs mt-1">{createdDate}</CardDescription>
-            </div>
-          </div>
-          <Badge variant={badgeVariants[artifact.kind]} className="ml-2">
-            {artifact.kind}
-          </Badge>
-        </div>
-      </CardHeader>
+    const Icon = getArtifactIcon(artifact.kind)
 
-      <CardContent className="pb-3">
-        <p className="text-sm text-gray-600 line-clamp-2">{artifact.preview}</p>
-      </CardContent>
-
-      <div className="px-6 py-3 border-t flex justify-end">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1"
-          onClick={(e) => {
-            e.stopPropagation()
-            onSelect?.(artifact)
-          }}
+    return (
+        <Card
+            className="bg-white dark:bg-card border-border hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
+            onClick={() => onSelect?.(artifact)}
         >
-          View Details
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
-    </Card>
-  )
-}
+            <button className="w-full px-4 py-3.5 text-left">
+                <div className="flex items-center gap-3">
+                    {/* Icon */}
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Icon className="h-4.5 w-4.5 text-primary" />
+                    </div>
 
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                        <span className="font-medium text-sm block truncate">{artifact.title}</span>
+                        <span className="text-xs text-muted-foreground">{artifact.kind} • {createdDate}</span>
+                    </div>
+
+                    {/* Arrow */}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                </div>
+            </button>
+        </Card>
+    )
+}

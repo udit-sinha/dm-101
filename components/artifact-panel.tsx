@@ -1,237 +1,259 @@
 'use client'
 
-import { useState } from 'react'
-import { ArtifactSummary, AnalyticsArtifactData, ResearchArtifactData, DataQualityArtifactData, EntityResolutionArtifactData } from '@/lib/types/chat'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import type { ArtifactSummary, AnalyticsArtifactData, ResearchArtifactData, DataQualityArtifactData, EntityResolutionArtifactData } from '@/lib/types/chat'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table"
-import { X, Copy, Download } from 'lucide-react'
+import { DataCard } from './data-card'
+import { Copy, Building2, MapPin } from 'lucide-react'
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Separator } from '@/components/ui/separator'
 
 interface ArtifactPanelProps {
-  artifact: ArtifactSummary
-  onClose?: () => void
+    artifact: ArtifactSummary
+    onClose?: () => void
+    onExport?: () => void
 }
 
-export function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps) {
-  const [copied, setCopied] = useState(false)
 
-  const copyToClipboard = () => {
-    const text = JSON.stringify(artifact.data, null, 2)
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
-  const renderContent = () => {
-    const data = artifact.data
+export function ArtifactPanel({ artifact, onClose, onExport }: ArtifactPanelProps) {
+    const [copied, setCopied] = useState(false)
 
-    switch (artifact.kind) {
-      case 'analytics': {
-        const analyticsData = data as AnalyticsArtifactData
-        return (
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">Answer</h4>
-              <p className="text-sm text-gray-700">{analyticsData.answer}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Details</h4>
-              <div className="text-sm text-gray-700 prose prose-sm max-w-none dark:prose-invert">
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    table: ({node, ...props}) => (
-                      <div className="my-4 border rounded-md overflow-hidden">
-                        <Table {...props} />
-                      </div>
-                    ),
-                    thead: ({node, ...props}) => <TableHeader {...props} />,
-                    tbody: ({node, ...props}) => <TableBody {...props} />,
-                    tr: ({node, ...props}) => <TableRow {...props} />,
-                    th: ({node, ...props}) => <TableHead {...props} />,
-                    td: ({node, ...props}) => <TableCell {...props} />,
-                  }}
-                >
-                  {analyticsData.details}
-                </ReactMarkdown>
-              </div>
-            </div>
-            {analyticsData.code && (
-              <div>
-                <h4 className="font-semibold mb-2">Code</h4>
-                <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto">
-                  <code>{analyticsData.code}</code>
-                </pre>
-              </div>
-            )}
-            {analyticsData.datasetsUsed && (
-              <div>
-                <h4 className="font-semibold mb-2">Datasets Used</h4>
-                <div className="flex flex-wrap gap-2">
-                  {analyticsData.datasetsUsed.map((ds) => (
-                    <Badge key={ds} variant="secondary">
-                      {ds}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {analyticsData.executionTimeMs && (
-              <div className="text-xs text-gray-500">
-                Execution time: {analyticsData.executionTimeMs}ms
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      case 'research': {
-        const researchData = data as ResearchArtifactData
-        return (
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">Answer</h4>
-              <p className="text-sm text-gray-700">{researchData.answer}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Sources</h4>
-              <div className="space-y-2">
-                {researchData.sources.map((source, idx) => (
-                  <div key={idx} className="border rounded p-2 text-sm">
-                    <p className="font-medium">{source.title}</p>
-                    {source.url && (
-                      <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                        {source.url}
-                      </a>
-                    )}
-                    {source.snippet && <p className="text-gray-600 text-xs mt-1">{source.snippet}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      case 'data-quality': {
-        const dqData = data as DataQualityArtifactData
-        return (
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">Summary</h4>
-              <p className="text-sm text-gray-700">{dqData.summary}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Report</h4>
-              <div className="bg-gray-50 p-3 rounded text-sm prose prose-sm max-w-none">
-                {dqData.markdown}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Issues Found</p>
-                <p className="text-lg font-semibold">{dqData.issuesFound}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Columns Analyzed</p>
-                <p className="text-lg font-semibold">{dqData.columnsAnalyzed}</p>
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      case 'entity-resolution': {
-        const erData = data as EntityResolutionArtifactData
-        return (
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">Query</h4>
-              <p className="text-sm text-gray-700">{erData.query}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Resolved Entities</h4>
-              <div className="space-y-2">
-                {erData.resolvedEntities.map((entity, idx) => (
-                  <div key={idx} className="border rounded p-2 text-sm">
-                    <p className="font-medium">{entity.input}</p>
-                    <p className="text-gray-600 text-xs">Matched: {entity.matched.join(', ')}</p>
-                    <p className="text-gray-600 text-xs">Confidence: {(entity.confidence * 100).toFixed(1)}%</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      default:
-        return <p className="text-sm text-gray-600">No preview available</p>
+    const copyToClipboard = () => {
+        const text = JSON.stringify(artifact.data, null, 2)
+        navigator.clipboard.writeText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
     }
-  }
 
-  return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
-        <div>
-          <CardTitle>{artifact.title}</CardTitle>
-          <CardDescription>{artifact.kind}</CardDescription>
-        </div>
-        {onClose && (
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
-        )}
-      </CardHeader>
+    // Custom table components for markdown rendering
+    const tableComponents = {
+        table: ({ node, ...props }: any) => (
+            <div className="not-prose grid grid-cols-1 w-full my-4">
+                <DataCard title="Data Results">
+                    <Table className="text-xs" {...props} />
+                </DataCard>
+            </div>
+        ),
+        thead: ({ node, ...props }: any) => (
+            <TableHeader className="bg-muted/50 sticky top-0" {...props} />
+        ),
+        tbody: ({ node, ...props }: any) => <TableBody {...props} />,
+        tr: ({ node, ...props }: any) => (
+            <TableRow className="hover:bg-muted/30" {...props} />
+        ),
+        th: ({ node, ...props }: any) => (
+            <TableHead className="text-xs font-medium text-muted-foreground whitespace-nowrap px-3 py-2 h-8" {...props} />
+        ),
+        td: ({ node, ...props }: any) => (
+            <TableCell className="text-xs px-3 py-2 whitespace-nowrap" {...props} />
+        ),
+    }
 
-      <CardContent>
-        <Tabs defaultValue="content" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="content">Content</TabsTrigger>
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="raw">Raw</TabsTrigger>
-          </TabsList>
+    const renderContent = () => {
+        const data = artifact.data
 
-          <TabsContent value="content" className="mt-4">
+        switch (artifact.kind) {
+            case 'analytics': {
+                const analyticsData = data as AnalyticsArtifactData
+                return (
+                    <div className="space-y-5">
+                        {/* Main answer text - flows directly */}
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                            {analyticsData.answer}
+                        </p>
+
+                        {/* Data with table */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-foreground mb-3">Data</h4>
+                            <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={tableComponents}
+                                >
+                                    {analyticsData.details}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+
+                        {/* Code block */}
+                        {analyticsData.code && (
+                            <div>
+                                <h4 className="text-sm font-semibold text-foreground mb-2">SQL Query</h4>
+                                <div className="border rounded-lg bg-muted/30 overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <pre className="p-3 text-xs font-mono">
+                                            <code>{analyticsData.code}</code>
+                                        </pre>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Datasets */}
+                        {analyticsData.datasetsUsed && analyticsData.datasetsUsed.length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-semibold text-foreground mb-2">Datasets Used</h4>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {analyticsData.datasetsUsed.map((ds) => (
+                                        <Badge key={ds} variant="secondary" className="text-xs">
+                                            {ds}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Execution time */}
+                        {analyticsData.executionTimeMs && (
+                            <p className="text-xs text-muted-foreground">
+                                Execution time: {analyticsData.executionTimeMs}ms
+                            </p>
+                        )}
+                    </div>
+                )
+            }
+
+            case 'research': {
+                const researchData = data as ResearchArtifactData
+                return (
+                    <div className="space-y-5">
+                        {/* Markdown content - directly shows research findings */}
+                        <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    ...tableComponents,
+                                    h1: ({ node, ...props }) => <h2 className="text-base font-semibold text-foreground mt-6 mb-3" {...props} />,
+                                    h2: ({ node, ...props }) => <h3 className="text-base font-semibold text-foreground mt-6 mb-3" {...props} />,
+                                    h3: ({ node, ...props }) => <h4 className="text-sm font-semibold text-foreground mt-5 mb-2" {...props} />,
+                                    h4: ({ node, ...props }) => <h5 className="text-sm font-medium text-foreground mt-4 mb-2" {...props} />,
+                                    ul: ({ node, ...props }) => <ul className="space-y-2 text-sm my-3 list-disc pl-5" {...props} />,
+                                    li: ({ node, ...props }) => <li className="text-muted-foreground leading-relaxed" {...props} />,
+                                    p: ({ node, ...props }) => <p className="text-muted-foreground mb-3 text-sm leading-relaxed" {...props} />,
+                                    strong: ({ node, ...props }) => <span className="font-semibold text-foreground" {...props} />,
+                                }}
+                            >
+                                {researchData.answer}
+                            </ReactMarkdown>
+                        </div>
+
+                        {/* Sources */}
+                        {researchData.sources && researchData.sources.length > 0 && (
+                            <>
+                                <Separator />
+                                <div>
+                                    <h4 className="text-sm font-semibold text-foreground mb-3">Sources</h4>
+                                    <div className="space-y-2">
+                                        {researchData.sources.map((source, idx) => (
+                                            <div key={idx} className="flex items-start gap-2 text-sm">
+                                                <Building2 className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                                                <div className="min-w-0">
+                                                    <span className="font-medium text-foreground">{source.title}</span>
+                                                    {source.url && (
+                                                        <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs block truncate">
+                                                            {source.url}
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )
+            }
+
+            case 'data-quality': {
+                const dqData = data as DataQualityArtifactData
+                return (
+                    <div className="space-y-5">
+                        <div>
+                            <h3 className="text-sm font-semibold text-foreground mb-2">Summary</h3>
+                            <p className="text-sm text-muted-foreground">{dqData.summary}</p>
+                        </div>
+
+                        {/* Stats */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="border rounded-lg p-3 bg-muted/20">
+                                <p className="text-xs text-muted-foreground">Issues Found</p>
+                                <p className="text-lg font-semibold">{dqData.issuesFound}</p>
+                            </div>
+                            <div className="border rounded-lg p-3 bg-muted/20">
+                                <p className="text-xs text-muted-foreground">Columns Analyzed</p>
+                                <p className="text-lg font-semibold">{dqData.columnsAnalyzed}</p>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Report */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-foreground mb-2">Report</h4>
+                            <div className="border rounded-lg bg-muted/20 p-4 text-sm prose prose-sm max-w-none">
+                                {dqData.markdown}
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            case 'entity-resolution': {
+                const erData = data as EntityResolutionArtifactData
+                return (
+                    <div className="space-y-5">
+                        <div>
+                            <h3 className="text-sm font-semibold text-foreground mb-2">Query</h3>
+                            <p className="text-sm text-muted-foreground">{erData.query}</p>
+                        </div>
+
+                        <Separator />
+
+                        <div>
+                            <h4 className="text-sm font-semibold text-foreground mb-3">Resolved Entities</h4>
+                            <div className="space-y-2">
+                                {erData.resolvedEntities.map((entity, idx) => (
+                                    <div key={idx} className="border rounded-lg p-3 bg-muted/10">
+                                        <div className="flex items-start gap-2">
+                                            <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                                            <div className="min-w-0">
+                                                <span className="font-medium text-sm">{entity.input}</span>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Matched: {entity.matched.join(', ')}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Confidence: {(entity.confidence * 100).toFixed(1)}%
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            default:
+                return <p className="text-sm text-muted-foreground">No preview available</p>
+        }
+    }
+
+    return (
+        <div id="artifact-content" className="space-y-5 min-w-0">
             {renderContent()}
-          </TabsContent>
-
-          <TabsContent value="details" className="mt-4 space-y-2 text-sm">
-            <div>
-              <p className="text-gray-600">Created</p>
-              <p>{new Date(artifact.createdAt).toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Kind</p>
-              <p>{artifact.kind}</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="raw" className="mt-4">
-            <div className="flex justify-end mb-2">
-              <Button size="sm" variant="outline" onClick={copyToClipboard} className="gap-2">
-                <Copy className="w-4 h-4" />
-                {copied ? 'Copied!' : 'Copy'}
-              </Button>
-            </div>
-            <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto max-h-96">
-              <code>{JSON.stringify(artifact.data, null, 2)}</code>
-            </pre>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  )
+        </div>
+    )
 }
-
