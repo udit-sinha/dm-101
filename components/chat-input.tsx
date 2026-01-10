@@ -7,7 +7,7 @@ import { Plus, Send, Wand2, MapIcon, Upload, Files, Zap, Sparkles, BarChart3 } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
-import { MapDrawer } from "./map-drawer"
+import { MapContextModal, type MapContextData } from "./map-context-modal"
 import { FileUpload } from "./file-upload"
 import { Badge } from "@/components/ui/badge"
 
@@ -35,8 +35,8 @@ export function ChatInput({ onSubmit, isLoading, onCancel }: ChatInputProps) {
         setContextItems([])
     }
 
-    const addMapContext = (coordinates: any) => {
-        setContextItems((prev) => [...prev, { type: "map", data: coordinates }])
+    const addMapContext = (contextData: MapContextData) => {
+        setContextItems((prev) => [...prev, { type: "map", data: contextData }])
         setShowMapDrawer(false)
     }
 
@@ -73,7 +73,7 @@ export function ChatInput({ onSubmit, isLoading, onCancel }: ChatInputProps) {
                                     {item.type === "map" ? (
                                         <>
                                             <MapIcon className="h-3 w-3" />
-                                            Map Area
+                                            {item.data.count} {item.data.layerName}
                                         </>
                                     ) : (
                                         <>
@@ -171,8 +171,8 @@ export function ChatInput({ onSubmit, isLoading, onCancel }: ChatInputProps) {
                 </div>
             </div>
 
-            {/* Map Drawer Modal */}
-            {showMapDrawer && <MapDrawer onClose={() => setShowMapDrawer(false)} onSave={addMapContext} />}
+            {/* Map Context Modal */}
+            {showMapDrawer && <MapContextModal onClose={() => setShowMapDrawer(false)} onAddContext={addMapContext} />}
 
             {/* File Upload Modal */}
             {showFileUpload && <FileUpload onClose={() => setShowFileUpload(false)} onUpload={addFileContext} />}

@@ -312,7 +312,7 @@ export function useChatStream() {
 
     // Send message and start streaming
     const sendMessage = useCallback(
-        async (message: string, mode: 'research' | 'analytics', context?: string[]) => {
+        async (message: string, mode: 'research' | 'analytics', context?: any[]) => {
             const userMessage: ChatMessage = {
                 id: `msg-${Date.now()}`,
                 role: 'user',

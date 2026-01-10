@@ -136,6 +136,10 @@ export interface MapViewProps {
     center?: [number, number]
     zoom?: number
     uiPositions?: UIPositionConfig
+    /** Mode: 'default' for normal map, 'selection' for chat context selection */
+    mode?: 'default' | 'selection'
+    /** Callback when user clicks "Add to Chat" in selection mode */
+    onAddToChat?: (features: Feature[]) => void
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
@@ -162,7 +166,9 @@ export function MapView({
         layerDrawer: 'left',
         drawToolbar: 'top-right',
         mapControls: 'top-right'
-    }
+    },
+    mode = 'default',
+    onAddToChat
 }: MapViewProps = {}) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<MapInstance | null>(null)
@@ -416,7 +422,7 @@ export function MapView({
         } else {
             // Circle: start is center, end is radius point
             const radius = Math.sqrt(
-                Math.pow(bounds.endX - bounds.startX, 2) + 
+                Math.pow(bounds.endX - bounds.startX, 2) +
                 Math.pow(bounds.endY - bounds.startY, 2)
             )
             queryMinX = bounds.startX - radius
@@ -530,8 +536,8 @@ export function MapView({
             if (map.current?.getSource(sourceId)) return
 
             // Ensure data_url is absolute if it starts with /api
-            const absoluteUrl = layer.data_url?.startsWith('/api') 
-                ? `${API_BASE_URL}${layer.data_url}` 
+            const absoluteUrl = layer.data_url?.startsWith('/api')
+                ? `${API_BASE_URL}${layer.data_url}`
                 : layer.data_url
 
             if (layer.source_type === 'geojson' && absoluteUrl) {
@@ -732,13 +738,13 @@ export function MapView({
 
                 // Build dynamic tooltip content based on config
                 let content = `<div class="p-2 min-w-[150px]">`
-                
+
                 if (layerConfig?.tooltip_fields && layerConfig.tooltip_fields.length > 0) {
                     // Sort by priority if available
                     const sortedFields = [...layerConfig.tooltip_fields].sort((a, b) => (a.priority || 99) - (b.priority || 99))
-                    
+
                     content += `<div class="font-bold border-b border-border pb-1 mb-1 text-sm">${props[sortedFields[0].field] || 'Feature Details'}</div>`
-                    
+
                     sortedFields.slice(1).forEach(field => {
                         const val = props[field.field]
                         if (val !== undefined && val !== null) {
@@ -755,7 +761,7 @@ export function MapView({
                         content += `<div class="text-xs text-muted-foreground">${props.status}</div>`
                     }
                 }
-                
+
                 content += `</div>`
 
                 popup.setLngLat(e.lngLat)
@@ -904,9 +910,9 @@ export function MapView({
                     const legendLayer = [...layers]
                         .filter(l => visibleLayers[l.id] && l.legend_items)
                         .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))[0];
-                    
+
                     if (!legendLayer) return null;
-                    
+
                     return (
                         <Legend
                             key={`legend-${legendLayer.id}`}
@@ -919,19 +925,21 @@ export function MapView({
                 })()}
             </div>
 
-            {/* AI Insights Panel - Right side */}
-            <AIInsightsPanel
-                isOpen={showAIPanel}
-                onClose={() => setShowAIPanel(false)}
-                analyticalMapping={(() => {
-                    const activeLayer = layers.find(l => visibleLayers[l.id] && l.analytical_mapping)
-                    return activeLayer?.analytical_mapping
-                })()}
-                onQuerySubmit={(query) => {
-                    console.log('AI Query:', query)
-                    // TODO: Integrate with AI backend
-                }}
-            />
+            {/* AI Insights Panel - Right side (hidden in selection mode) */}
+            {mode !== 'selection' && (
+                <AIInsightsPanel
+                    isOpen={showAIPanel}
+                    onClose={() => setShowAIPanel(false)}
+                    analyticalMapping={(() => {
+                        const activeLayer = layers.find(l => visibleLayers[l.id] && l.analytical_mapping)
+                        return activeLayer?.analytical_mapping
+                    })()}
+                    onQuerySubmit={(query) => {
+                        console.log('AI Query:', query)
+                        // TODO: Integrate with AI backend
+                    }}
+                />
+            )}
 
             {/* Feature Details Panel - Bottom */}
             {showDetailsPanel && selectedFeatures.length > 0 && (
@@ -939,6 +947,8 @@ export function MapView({
                     features={selectedFeatures}
                     onClose={handleClearSelection}
                     onZoomTo={handleZoomToFeature}
+                    showAddToChat={mode === 'selection'}
+                    onAddToChat={onAddToChat}
                 />
             )}
         </div>

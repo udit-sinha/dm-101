@@ -9,7 +9,10 @@ export default function MapPage() {
         <div className="flex flex-col h-full overflow-hidden">
             <TopNav title="Map View" showSearch={false} />
             <div className="flex-1 overflow-hidden">
-                <MapView />
+                <MapView
+                    center={[150.98, -27.27]}
+                    zoom={8}
+                />
             </div>
         </div>
     )

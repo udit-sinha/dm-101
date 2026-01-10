@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { X, GripHorizontal, Download, Share2, SearchIcon, TableIcon, BarChart3 } from 'lucide-react'
+import { X, GripHorizontal, Download, Share2, SearchIcon, TableIcon, BarChart3, MessageSquarePlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface Feature {
@@ -23,6 +23,10 @@ export interface FeatureDetailsPanelProps {
     initialHeight?: number
     minHeight?: number
     maxHeight?: number
+    /** Show "Add to Chat" button for selection mode */
+    showAddToChat?: boolean
+    /** Callback when user clicks "Add to Chat" */
+    onAddToChat?: (features: Feature[]) => void
 }
 
 // Group features by layer name
@@ -50,7 +54,9 @@ export function FeatureDetailsPanel({
     className,
     initialHeight = 40,
     minHeight = 20,
-    maxHeight = 80
+    maxHeight = 80,
+    showAddToChat = false,
+    onAddToChat
 }: FeatureDetailsPanelProps) {
     const [panelHeight, setPanelHeight] = useState(initialHeight)
     const [isDragging, setIsDragging] = useState(false)
@@ -328,6 +334,18 @@ export function FeatureDetailsPanel({
                         >
                             <Share2 className="h-3.5 w-3.5" />
                         </button>
+
+                        {/* Add to Chat - Only shown in selection mode */}
+                        {showAddToChat && onAddToChat && (
+                            <button
+                                onClick={() => onAddToChat(features)}
+                                className="flex items-center gap-1.5 rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                                title="Add selection to chat context"
+                            >
+                                <MessageSquarePlus className="h-3.5 w-3.5" />
+                                Add to Chat
+                            </button>
+                        )}
                     </div>
                 </div>
 
