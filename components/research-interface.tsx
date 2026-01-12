@@ -5,19 +5,32 @@ import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { ChatArea } from "./chat-area"
 import { EmptyState } from "./empty-state"
-import { X, Download } from "lucide-react"
+import { X, Download, Menu } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { useChatStream } from "@/lib/hooks/useChatStream"
+import { useSessions } from "@/lib/hooks/useSessions"
 import type { ArtifactSummary } from "@/lib/types/chat"
 import { ArtifactPanel } from "./artifact-panel"
+import { HistorySidebar } from "./history-sidebar"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function ResearchInterface() {
-    const { state, sendMessage, cancel } = useChatStream()
+    const { state, sendMessage, cancel, loadSession, reset } = useChatStream()
+    const { sessions, isLoading: isLoadingSessions, fetchSessions, deleteSession } = useSessions()
+
     const [selectedArtifact, setSelectedArtifact] = useState<ArtifactSummary | null>(null)
-    const [panelWidth, setPanelWidth] = useState(0) // Will be set on mount
+    const [panelWidth, setPanelWidth] = useState(0)
     const [isDragging, setIsDragging] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
+
+    // History sidebar state
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    const [isSidebarPinned, setIsSidebarPinned] = useState(false)
+
+    // Track previous loading state to detect when streaming completes
+    const prevIsLoadingRef = useRef(state.isLoading)
+    const prevConversationIdRef = useRef(state.conversationId)
 
     // Initialize panel width to 50% of container on mount
     useEffect(() => {
@@ -25,6 +38,45 @@ export function ResearchInterface() {
             setPanelWidth(Math.floor(window.innerWidth / 2))
         }
     }, [])
+
+    // URL-based session persistence: Read session from URL on mount
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search)
+            const sessionParam = params.get('session')
+            if (sessionParam) {
+                const sessionId = parseInt(sessionParam, 10)
+                if (!isNaN(sessionId) && sessionId !== state.conversationId) {
+                    console.log('[ResearchInterface] Loading session from URL:', sessionId)
+                    loadSession(sessionId)
+                }
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // Only run on mount
+
+    // URL-based session persistence: Update URL when conversationId changes
+    useEffect(() => {
+        if (typeof window !== "undefined" && state.conversationId) {
+            // Only update URL if conversation ID changed and is valid
+            if (state.conversationId !== prevConversationIdRef.current) {
+                const url = new URL(window.location.href)
+                url.searchParams.set('session', state.conversationId.toString())
+                window.history.replaceState({}, '', url.toString())
+                console.log('[ResearchInterface] Updated URL with session:', state.conversationId)
+            }
+        }
+        prevConversationIdRef.current = state.conversationId
+    }, [state.conversationId])
+
+    // Refresh sessions when streaming completes (to get updated titles)
+    useEffect(() => {
+        if (prevIsLoadingRef.current && !state.isLoading) {
+            // Streaming just completed - refresh sessions to get updated title
+            fetchSessions()
+        }
+        prevIsLoadingRef.current = state.isLoading
+    }, [state.isLoading, fetchSessions])
 
     const handleSubmit = async (data: { message: string; mode?: string; context?: any[] }) => {
         await sendMessage(
@@ -58,11 +110,8 @@ export function ResearchInterface() {
             setIsDragging(false)
         }
 
-        // Add listeners to document for reliable capture
         document.addEventListener('mousemove', handleMouseMove)
         document.addEventListener('mouseup', handleMouseUp)
-
-        // Prevent text selection while dragging
         document.body.style.userSelect = 'none'
         document.body.style.cursor = 'col-resize'
 
@@ -113,84 +162,175 @@ export function ResearchInterface() {
         }, 250)
     }
 
+    // Session management handlers
+    const handleToggleSidebar = () => {
+        setIsSidebarOpen(!isSidebarOpen)
+    }
+
+    const handleCloseSidebar = () => {
+        if (!isSidebarPinned) {
+            setIsSidebarOpen(false)
+        }
+    }
+
+    const handleTogglePin = () => {
+        setIsSidebarPinned(!isSidebarPinned)
+    }
+
+    const handleSelectSession = async (sessionId: number) => {
+        if (loadSession) {
+            await loadSession(sessionId)
+        }
+        if (!isSidebarPinned) {
+            setIsSidebarOpen(false)
+        }
+    }
+
+    const handleNewChat = () => {
+        reset()
+        // Clear session from URL when starting new chat
+        if (typeof window !== "undefined") {
+            const url = new URL(window.location.href)
+            url.searchParams.delete('session')
+            window.history.replaceState({}, '', url.toString())
+        }
+        if (!isSidebarPinned) {
+            setIsSidebarOpen(false)
+        }
+    }
+
+    const handleDeleteSession = async (sessionId: number) => {
+        const success = await deleteSession(sessionId)
+        if (success && state.conversationId === sessionId) {
+            reset()
+        }
+    }
+
+    const handleSendMessage = async (message: string, mode: 'research' | 'analytics', context?: any[]) => {
+        await sendMessage(message, mode, context)
+        fetchSessions()
+    }
+
+    // Get the current session title
+    const currentSessionTitle = state.conversationId
+        ? sessions.find(s => s.id === state.conversationId)?.title
+        : null
+
     return (
         <div ref={containerRef} className="flex flex-col h-screen bg-background overflow-hidden">
-            {state.messages.length > 0 && (
-                <div className="px-6 py-3 border-b shrink-0">
-                    <h1 className="text-sm text-muted-foreground">How can I help you today?</h1>
-                </div>
-            )}
+            {/* Header with burger menu */}
+            <div className="flex h-14 shrink-0 items-center gap-4 border-b bg-background px-4 z-30">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleToggleSidebar}
+                    title="Chat history"
+                >
+                    <Menu className="h-5 w-5" />
+                </Button>
+                {state.messages.length > 0 && (
+                    <h1 className="text-sm text-muted-foreground truncate max-w-md">
+                        {currentSessionTitle || "New Conversation"}
+                    </h1>
+                )}
+            </div>
 
             <div className="flex flex-1 min-h-0 overflow-hidden">
-                {/* Chat Area - flex-1 takes remaining space */}
-                <main
-                    className="flex-1 flex flex-col min-w-0 overflow-hidden bg-muted/40 relative"
-                    style={{
-                        // Use flex-basis to control width when artifact is open
-                        flexBasis: selectedArtifact ? `calc(100% - ${panelWidth}px - 4px)` : '100%',
-                        flexShrink: 0,
-                        flexGrow: selectedArtifact ? 0 : 1,
-                    }}
-                >
-                    {state.messages.length === 0 ? (
-                        <EmptyState onSubmit={handleSubmit} />
-                    ) : (
-                        <ChatArea
-                            messages={state.messages}
-                            onSubmit={handleSubmit}
-                            onArtifactClick={setSelectedArtifact}
-                            isLoading={state.isLoading}
-                            onCancel={cancel}
+                {/* History Sidebar - Pinned mode uses flexbox, unpinned uses absolute */}
+                {isSidebarPinned && isSidebarOpen && (
+                    <HistorySidebar
+                        isOpen={isSidebarOpen}
+                        isPinned={isSidebarPinned}
+                        sessions={sessions}
+                        currentSessionId={state.conversationId}
+                        onClose={handleCloseSidebar}
+                        onTogglePin={handleTogglePin}
+                        onSelectSession={handleSelectSession}
+                        onNewChat={handleNewChat}
+                        onDeleteSession={handleDeleteSession}
+                        isLoading={isLoadingSessions}
+                        className="shrink-0"
+                    />
+                )}
+
+                {/* Chat Area Container - relative for unpinned sidebar positioning */}
+                <div className="flex-1 flex min-w-0 overflow-hidden relative">
+                    {/* Unpinned History Sidebar - Overlays on top */}
+                    {!isSidebarPinned && (
+                        <HistorySidebar
+                            isOpen={isSidebarOpen}
+                            isPinned={isSidebarPinned}
+                            sessions={sessions}
+                            currentSessionId={state.conversationId}
+                            onClose={handleCloseSidebar}
+                            onTogglePin={handleTogglePin}
+                            onSelectSession={handleSelectSession}
+                            onNewChat={handleNewChat}
+                            onDeleteSession={handleDeleteSession}
+                            isLoading={isLoadingSessions}
                         />
                     )}
-                </main>
 
-                {/* Artifact Panel */}
-                {selectedArtifact && (
-                    <>
-                        {/* Resizer Handle */}
-                        <div
-                            className={`w-1 flex-shrink-0 cursor-col-resize relative group ${isDragging ? 'bg-primary/40' : 'bg-border hover:bg-primary/20'
-                                }`}
-                            onMouseDown={handleMouseDown}
-                            style={{ touchAction: 'none' }}
-                        >
-                            {/* Larger hit area */}
-                            <div className="absolute inset-y-0 -left-2 -right-2 z-10" />
-                            {/* Visual indicator */}
-                            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-16 rounded-full transition-colors ${isDragging ? 'bg-primary' : 'bg-border group-hover:bg-primary/40'
-                                }`} />
-                        </div>
+                    {/* Chat Area */}
+                    <main
+                        className="flex-1 flex flex-col min-w-0 overflow-hidden bg-muted/40 relative"
+                        style={{
+                            flexBasis: selectedArtifact ? `calc(100% - ${panelWidth}px - 4px)` : '100%',
+                            transition: isDragging ? 'none' : 'flex-basis 0.3s ease-in-out'
+                        }}
+                    >
+                        {state.messages.length === 0 ? (
+                            <EmptyState onSubmit={handleSubmit} />
+                        ) : (
+                            <ChatArea
+                                messages={state.messages}
+                                onSubmit={handleSubmit}
+                                onArtifactClick={setSelectedArtifact}
+                                isLoading={state.isLoading}
+                                onCancel={cancel}
+                            />
+                        )}
+                    </main>
 
-                        {/* Panel */}
-                        <aside
-                            className="bg-card border-l border-border flex flex-col overflow-hidden flex-shrink-0"
-                            style={{ width: `${panelWidth}px` }}
-                        >
-                            {/* Header - simplified with just title */}
-                            <div className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
-                                <h2 className="text-base font-semibold truncate flex-1 min-w-0">
-                                    {selectedArtifact.title}
-                                </h2>
-                                <div className="flex items-center gap-1 flex-shrink-0 ml-3">
-                                    <Button variant="ghost" size="icon" onClick={handleExportPDF} className="h-7 w-7">
-                                        <Download className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" onClick={() => setSelectedArtifact(null)} className="h-7 w-7">
-                                        <X className="h-4 w-4" />
-                                    </Button>
+                    {state.messages.length > 0 && selectedArtifact && (
+                        <>
+                            {/* Resizer Handle */}
+                            <div
+                                className={cn(
+                                    "w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-10",
+                                    isDragging && "bg-primary/50"
+                                )}
+                                onMouseDown={handleMouseDown}
+                            />
+
+                            {/* Artifact Panel */}
+                            <aside
+                                className="flex flex-col bg-background border-l transition-all duration-300 ease-in-out"
+                                style={{
+                                    width: panelWidth,
+                                    opacity: 1,
+                                    overflow: 'hidden'
+                                }}
+                            >
+                                <div className="flex items-center justify-between px-4 py-2 border-b h-14">
+                                    <span className="font-semibold text-sm">Artifact Details</span>
+                                    <div className="flex items-center gap-1">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedArtifact(null)}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Content - ScrollArea takes remaining height */}
-                            <ScrollArea className="flex-1 min-h-0">
-                                <div className="px-6 py-6 w-full">
-                                    <ArtifactPanel artifact={selectedArtifact} />
-                                </div>
-                            </ScrollArea>
-                        </aside>
-                    </>
-                )}
+                                <ScrollArea className="flex-1 min-h-0">
+                                    <div className="px-6 py-6 w-full">
+                                        <ArtifactPanel artifact={selectedArtifact} />
+                                    </div>
+                                </ScrollArea>
+                            </aside>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     )

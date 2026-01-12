@@ -17,6 +17,7 @@ import {
     ThinkingEventData,
     ThinkingItem,
     DoneEventData,
+    ResponseMode,
 } from '@/lib/types/chat'
 
 // Initial state
@@ -300,6 +301,14 @@ function chatStreamReducer(state: ChatStreamState, action: ChatStreamAction): Ch
             return initialState
         }
 
+        case 'LOAD_SESSION': {
+            return {
+                ...initialState,
+                messages: action.messages,
+                conversationId: action.conversationId,
+            }
+        }
+
         default:
             return state
     }
@@ -456,11 +465,266 @@ export function useChatStream() {
         }
     }, [])
 
+    // Polling interval ref for cleanup
+    const pollingRef = useRef<NodeJS.Timeout | null>(null)
+
+    // Stop any active polling
+    const stopPolling = useCallback(() => {
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+        }
+    }, [])
+
+    // Check for pending messages on session load
+    const checkPendingMessages = useCallback(async (sessionId: number) => {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/sessions/${sessionId}/pending`)
+            if (!response.ok) return null
+            const data = await response.json()
+            return data
+        } catch (error) {
+            console.error('Failed to check pending messages:', error)
+            return null
+        }
+    }, [])
+
+    // Poll for message completion - self-contained, doesn't call loadSession to avoid loops
+    const pollForCompletion = useCallback((sessionId: number, messageId: number) => {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+
+        // Clear any existing polling first
+        stopPolling()
+
+        pollingRef.current = setInterval(async () => {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/messages/${messageId}`)
+                if (!response.ok) {
+                    stopPolling()
+                    return
+                }
+
+                const message = await response.json()
+
+                // Check if terminal state reached
+                if (message.status === 'completed' || message.status === 'failed' || message.status === 'cancelled') {
+                    // IMPORTANT: Stop polling FIRST
+                    stopPolling()
+
+                    // Fetch fresh session data and update state directly (avoids loadSession loop)
+                    try {
+                        const sessionResp = await fetch(`${BACKEND_URL}/api/sessions/${sessionId}`)
+                        if (sessionResp.ok) {
+                            const session = await sessionResp.json()
+                            // Parse messages and dispatch
+                            const messages: ChatMessage[] = (session.messages || []).map((msg: any, idx: number) => {
+                                let content = msg.content
+                                let mode: ResponseMode = ResponseMode.conversational
+
+                                if (msg.role === 'assistant' && content) {
+                                    try {
+                                        if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+                                            const parsed = JSON.parse(content)
+                                            if (parsed.chat_response) content = parsed.chat_response
+                                            if (parsed.mode) mode = parsed.mode as ResponseMode
+                                        }
+                                    } catch { /* Not JSON */ }
+                                }
+
+                                const artifacts = (msg.artifacts || []).map((a: any) => ({
+                                    kind: a.kind || 'analytics',
+                                    title: a.title || 'Untitled',
+                                    preview: a.preview || '',
+                                    content: a.content || a.data?.answer || '',
+                                    data: a.data || {},
+                                    createdAt: a.created_at || Date.now()
+                                }))
+
+                                return {
+                                    id: `msg-${msg.id || idx}`,
+                                    role: msg.role as 'user' | 'assistant',
+                                    content,
+                                    timestamp: new Date(msg.timestamp),
+                                    isStreaming: false,
+                                    mode,
+                                    thinking: [],
+                                    thinkingCollapsed: true,
+                                    artifacts,
+                                }
+                            })
+                            dispatch({ type: 'LOAD_SESSION', conversationId: sessionId, messages })
+                        }
+                    } catch (e) {
+                        console.error('Failed to refresh session after poll:', e)
+                    }
+                }
+            } catch (error) {
+                console.error('Polling error:', error)
+                stopPolling()
+            }
+        }, 2000)
+    }, [stopPolling])
+
+    // Cancel a background task
+    const cancelBackgroundTask = useCallback(async (sessionId: number, messageId: number) => {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+        try {
+            stopPolling()
+            const response = await fetch(`${BACKEND_URL}/api/sessions/${sessionId}/tasks/${messageId}/cancel`, {
+                method: 'POST'
+            })
+            return response.ok
+        } catch (error) {
+            console.error('Failed to cancel task:', error)
+            return false
+        }
+    }, [stopPolling])
+
+    // Load a session by ID from the backend
+    const loadSession = useCallback(async (sessionId: number) => {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+
+        // Close any existing EventSource connection to prevent cross-chat leakage
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close()
+            eventSourceRef.current = null
+        }
+
+        // Also stop any legacy polling
+        stopPolling()
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/sessions/${sessionId}`)
+            if (!response.ok) throw new Error('Failed to load session')
+            const session = await response.json()
+
+            // Convert backend messages to ChatMessage format
+            const messages: ChatMessage[] = (session.messages || []).map((msg: any, idx: number) => {
+                let content = msg.content
+                let mode: ResponseMode = ResponseMode.conversational
+                const isProcessing = msg.status === 'processing' || msg.status === 'pending'
+
+                // For assistant messages, check if content is structured JSON
+                if (msg.role === 'assistant' && content && !isProcessing) {
+                    try {
+                        // Check if it looks like JSON
+                        if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+                            const parsed = JSON.parse(content)
+                            // Extract chat_response if it's our structured format
+                            if (parsed.chat_response) {
+                                content = parsed.chat_response
+                            }
+                            // Extract mode if available
+                            if (parsed.mode) {
+                                mode = parsed.mode as ResponseMode
+                            }
+                        }
+                    } catch {
+                        // Not JSON, use content as-is
+                    }
+                }
+
+                // Parse artifacts from the API response
+                const artifacts = (msg.artifacts || []).map((a: any) => ({
+                    kind: a.kind || 'analytics',
+                    title: a.title || 'Untitled',
+                    preview: a.preview || '',
+                    content: a.content || a.data?.answer || a.data?.markdown || '',  // Include content for display
+                    data: a.data || {},
+                    createdAt: a.created_at || Date.now()
+                }))
+
+                return {
+                    id: `msg-${msg.id || idx}`,
+                    role: msg.role as 'user' | 'assistant',
+                    content: isProcessing ? '' : content,  // Empty for processing - stream will populate
+                    timestamp: new Date(msg.timestamp),
+                    isStreaming: isProcessing,  // Shows loading indicator for processing messages
+                    mode,
+                    thinking: [],
+                    thinkingCollapsed: true,
+                    artifacts,
+                    messageId: msg.id,
+                    status: msg.status,
+                }
+            })
+
+            dispatch({ type: 'LOAD_SESSION', conversationId: sessionId, messages })
+
+            // Check for in-progress tasks and subscribe to their stream
+            const processingMsg = session.messages?.find((m: any) =>
+                m.status === 'processing' || m.status === 'pending'
+            )
+
+            if (processingMsg) {
+                // Connect to the subscribe endpoint for stream resume
+                subscribeToTask(sessionId, processingMsg.id)
+            }
+        } catch (error) {
+            console.error('Failed to load session:', error)
+        }
+    }, [])
+
+    // Subscribe to an in-progress task's SSE stream (for resume)
+    const subscribeToTask = useCallback((sessionId: number, messageId: number) => {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+
+        // Close any existing connection
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close()
+        }
+
+        const url = `${BACKEND_URL}/api/sessions/${sessionId}/tasks/${messageId}/subscribe`
+        const eventSource = new EventSource(url)
+        eventSourceRef.current = eventSource
+
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data)
+
+                // Construct ChatStreamEvent and dispatch as EVENT_RECEIVED
+                const streamEvent: ChatStreamEvent = {
+                    type: data.type,
+                    data: data.data,
+                    timestamp: Date.now()
+                }
+
+                dispatch({ type: 'EVENT_RECEIVED', event: streamEvent })
+
+                // Close connection on terminal events
+                if (data.type === 'done' || data.type === 'error') {
+                    eventSource.close()
+                    eventSourceRef.current = null
+                }
+            } catch (e) {
+                console.error('Failed to parse SSE event:', e)
+            }
+        }
+
+        eventSource.onerror = () => {
+            console.error('SSE subscription error')
+            eventSource.close()
+            eventSourceRef.current = null
+            dispatch({ type: 'CONNECTION_ERROR', error: 'Lost connection to stream' })
+        }
+    }, [])
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close()
+            }
+        }
+    }, [])
+
     return {
         state,
         sendMessage,
         cancel,
         reset,
+        loadSession,
+        subscribeToTask,
     }
 }
-

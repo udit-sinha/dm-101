@@ -298,6 +298,7 @@ export type ChatStreamAction =
     | { type: "CONNECTION_CLOSED" }
     | { type: "CONNECTION_ERROR"; error: string }
     | { type: "RESET" }
+    | { type: "LOAD_SESSION"; conversationId: number; messages: ChatMessage[] }
 
 // =============================================================================
 // API REQUEST/RESPONSE TYPES
