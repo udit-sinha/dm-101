@@ -9,11 +9,10 @@ import { X, Download, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useChatStream } from "@/lib/hooks/useChatStream"
 import { useSessions } from "@/lib/hooks/useSessions"
-import type { ArtifactSummary } from "@/lib/types/chat"
-import { ArtifactPanel } from "./artifact-panel"
+import type { ArtifactSummary, ArtifactFeedback } from "@/lib/types/chat"
+import { ArtifactFeedbackPanel } from "./artifact-feedback-panel"
 import { HistorySidebar } from "./history-sidebar"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function ResearchInterface() {
     const { state, sendMessage, cancel, loadSession, reset } = useChatStream()
@@ -211,6 +210,35 @@ export function ResearchInterface() {
         fetchSessions()
     }
 
+    // Handle feedback submission from artifact panel
+    const handleFeedbackSubmit = useCallback(async (feedback: ArtifactFeedback) => {
+        // Construct a feedback message for the agent
+        const feedbackParts: string[] = []
+
+        if (feedback.blockComments.length > 0) {
+            feedbackParts.push(`Please refine the following sections based on my feedback:`)
+            feedback.blockComments.forEach((comment, idx) => {
+                feedbackParts.push(`\n${idx + 1}. Section: "${comment.blockContent.slice(0, 100)}..."\n   Feedback: ${comment.comment}`)
+            })
+        }
+
+        if (feedback.generalComment) {
+            feedbackParts.push(`\n\nGeneral feedback: ${feedback.generalComment}`)
+        }
+
+        const feedbackMessage = feedbackParts.join('')
+
+        // Send the feedback as a new message to trigger agent refinement
+        await sendMessage(
+            feedbackMessage,
+            feedback.artifactKind === 'analytics' ? 'analytics' : 'research',
+            [{ type: 'artifact_feedback', data: feedback }] // Pass feedback as context
+        )
+
+        // Close the artifact panel after submitting feedback
+        setSelectedArtifact(null)
+    }, [sendMessage])
+
     // Get the current session title
     const currentSessionTitle = state.conversationId
         ? sessions.find(s => s.id === state.conversationId)?.title
@@ -313,20 +341,11 @@ export function ResearchInterface() {
                                     overflow: 'hidden'
                                 }}
                             >
-                                <div className="flex items-center justify-between px-4 py-2 border-b h-14">
-                                    <span className="font-semibold text-sm">Artifact Details</span>
-                                    <div className="flex items-center gap-1">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedArtifact(null)}>
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <ScrollArea className="flex-1 min-h-0">
-                                    <div className="px-6 py-6 w-full">
-                                        <ArtifactPanel artifact={selectedArtifact} />
-                                    </div>
-                                </ScrollArea>
+                                <ArtifactFeedbackPanel
+                                    artifact={selectedArtifact}
+                                    onClose={() => setSelectedArtifact(null)}
+                                    onSubmitFeedback={handleFeedbackSubmit}
+                                />
                             </aside>
                         </>
                     )}

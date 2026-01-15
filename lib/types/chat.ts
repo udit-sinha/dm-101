@@ -89,6 +89,26 @@ export interface ArtifactSummary {
 }
 
 // =============================================================================
+// BLOCK-LEVEL FEEDBACK TYPES
+// =============================================================================
+
+export interface BlockComment {
+    blockId: string           // Unique identifier for the block (e.g., "block-1")
+    blockPath: string         // Path like "research.paragraph.2" or "analytics.table.1"
+    blockContent: string      // The actual content of the block (for context)
+    comment: string           // User's feedback comment
+    timestamp: number
+}
+
+export interface ArtifactFeedback {
+    artifactKind: ArtifactKind
+    artifactTitle: string
+    blockComments: BlockComment[]   // Section-specific feedback
+    generalComment?: string          // Overall feedback (optional)
+    timestamp: number
+}
+
+// =============================================================================
 // FEEDBACK & GOAL TYPES
 // =============================================================================
 
