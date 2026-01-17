@@ -101,6 +101,7 @@ export interface BlockComment {
 }
 
 export interface ArtifactFeedback {
+    artifactId?: string           // Unique ID of the artifact (createdAt timestamp)
     artifactKind: ArtifactKind
     artifactTitle: string
     blockComments: BlockComment[]   // Section-specific feedback

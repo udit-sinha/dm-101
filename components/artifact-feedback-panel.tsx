@@ -210,6 +210,7 @@ export function ArtifactFeedbackPanel({
         if (!hasComments) return
 
         const feedback: ArtifactFeedback = {
+            artifactId: String(artifact.createdAt),  // Use createdAt as unique ID
             artifactKind: artifact.kind,
             artifactTitle: artifact.title,
             blockComments: Array.from(blockComments.values()),
