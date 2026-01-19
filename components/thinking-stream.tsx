@@ -1,128 +1,215 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ThinkingItem } from "@/lib/types/chat"
 
+interface ThinkingStep {
+    stepNumber: number
+    topic: string
+    thoughts: string[]
+    isComplete: boolean
+}
+
 interface ThinkingStreamProps {
-  thoughts: ThinkingItem[]
-  isComplete: boolean
-  className?: string
+    thoughts: ThinkingItem[]
+    isComplete: boolean
+    className?: string
 }
 
 export function ThinkingStream({ thoughts, isComplete, className }: ThinkingStreamProps) {
-  const [isExpanded, setIsExpanded] = useState(true)
-  
-  // Auto-collapse when complete
-  useEffect(() => {
-    if (isComplete && thoughts.length > 0) {
-      // Keep expanded for a moment so user can see final state
-      const timer = setTimeout(() => {
-        setIsExpanded(false)
-      }, 1500)
-      return () => clearTimeout(timer)
-    }
-  }, [isComplete, thoughts.length])
+    const [isExpanded, setIsExpanded] = useState(false)
 
-  if (thoughts.length === 0) return null
+    // Group flat ThinkingItems into steps
+    const steps = useMemo(() => {
+        const stepMap = new Map<number, ThinkingStep>()
 
-  // Show only latest thought when collapsed
-  const visibleThoughts = isExpanded ? thoughts : thoughts.slice(-1)
+        for (const item of thoughts) {
+            const stepNum = item.stepNumber ?? 0
 
-  return (
-    <div className={cn("thinking-stream", className)}>
-      {/* Collapse toggle when we have multiple thoughts */}
-      {thoughts.length > 1 && (
-        <button 
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1 transition-colors"
-        >
-          {isExpanded ? (
-            <ChevronDown className="w-3 h-3" />
-          ) : (
-            <ChevronRight className="w-3 h-3" />
-          )}
-          <span>{isExpanded ? 'Hide thinking' : `Show ${thoughts.length} steps`}</span>
-        </button>
-      )}
-      
-      {/* Thinking items */}
-      <AnimatePresence mode="popLayout">
-        {visibleThoughts.map((thought, idx) => (
-          <motion.div
-            key={thought.id}
-            initial={{ opacity: 0, y: -5, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="flex items-start gap-2 py-1">
-              {/* Thinking indicator */}
-              <span className="mt-0.5">
-                {isComplete ? (
-                  <span className="text-green-500 text-sm">✓</span>
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-                )}
-              </span>
-              
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <span className={cn(
-                  "text-sm leading-relaxed",
-                  isComplete ? "text-muted-foreground" : "text-foreground"
-                )}>
-                  {thought.content}
-                </span>
-                
-                {/* Sub-items for detailed steps */}
-                {thought.subItems && thought.subItems.length > 0 && (
-                  <div className="mt-1 ml-2 space-y-0.5">
-                    {thought.subItems.map((item, subIdx) => (
-                      <div 
-                        key={subIdx} 
-                        className="text-xs text-muted-foreground flex items-start gap-1"
-                      >
-                        <span className="text-muted-foreground/50">├─</span>
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-      
-      {/* Typing indicator when processing */}
-      {!isComplete && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center gap-1.5 ml-5 mt-1"
-        >
-          <motion.span 
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ repeat: Infinity, duration: 1.2, delay: 0 }}
-            className="w-1.5 h-1.5 rounded-full bg-blue-400" 
-          />
-          <motion.span 
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ repeat: Infinity, duration: 1.2, delay: 0.2 }}
-            className="w-1.5 h-1.5 rounded-full bg-blue-400" 
-          />
-          <motion.span 
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ repeat: Infinity, duration: 1.2, delay: 0.4 }}
-            className="w-1.5 h-1.5 rounded-full bg-blue-400" 
-          />
-        </motion.div>
-      )}
-    </div>
-  )
+            if (!stepMap.has(stepNum)) {
+                stepMap.set(stepNum, {
+                    stepNumber: stepNum,
+                    topic: item.topic || item.content || "Processing...",
+                    thoughts: [],
+                    isComplete: false,
+                })
+            }
+
+            const step = stepMap.get(stepNum)!
+
+            if (item.eventType === "start" && item.topic) {
+                step.topic = item.topic
+            } else if (item.eventType === "content" && item.content) {
+                step.thoughts.push(item.content)
+            } else if (item.eventType === "complete") {
+                step.isComplete = true
+            } else if (item.content && !item.eventType) {
+                step.thoughts.push(item.content)
+            }
+        }
+
+        return Array.from(stepMap.values()).sort((a, b) => a.stepNumber - b.stepNumber)
+    }, [thoughts])
+
+    // Mark all complete when stream is done
+    const finalSteps = useMemo(() => {
+        if (isComplete) {
+            return steps.map(s => ({ ...s, isComplete: true }))
+        }
+        return steps
+    }, [steps, isComplete])
+
+    // Get last 4 thought lines (not topics) for collapsed view
+    const tailLines = useMemo(() => {
+        const allThoughts: string[] = []
+        for (const step of finalSteps) {
+            allThoughts.push(...step.thoughts)
+        }
+        return allThoughts.slice(-4)
+    }, [finalSteps])
+
+    // Current active step - always show the LAST step (most recent)
+    const activeStep = finalSteps[finalSteps.length - 1]
+
+    if (thoughts.length === 0) return null
+
+    // For collapsed view: get last completed + current step
+    const completedSteps = finalSteps.filter(s => s.isComplete)
+    const currentStep = finalSteps.find(s => !s.isComplete)
+    const lastCompletedStep = completedSteps[completedSteps.length - 1]
+
+    return (
+        <div className={cn("thinking-stream", className)}>
+            {/* Collapsed View - Just current step */}
+            {!isExpanded && (
+                <div
+                    onClick={() => setIsExpanded(true)}
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                    {!isComplete && activeStep ? (
+                        <div className="space-y-1.5">
+                            {/* Chevron + Spinner + Heading */}
+                            <div className="flex gap-2.5 items-start">
+                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                <motion.span
+                                    className="w-3 h-3 rounded-full border-2 border-muted-foreground/50 bg-background flex-shrink-0 mt-1"
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                />
+                                <div className="text-sm font-medium text-muted-foreground flex-1 pt-0.5">
+                                    {activeStep.topic}
+                                </div>
+                            </div>
+
+                            {/* Tail - last 4 thought lines */}
+                            {tailLines.length > 0 && (
+                                <div className="ml-9 space-y-0.5 text-xs text-muted-foreground/70">
+                                    {tailLines.map((line, idx) => (
+                                        <p key={idx} className="truncate leading-relaxed">{line}</p>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>{finalSteps.length} steps completed</span>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Expanded View - Timeline with dots */}
+            {isExpanded && (
+                <div className="space-y-0">
+                    {/* Header with collapse toggle */}
+                    <button
+                        onClick={() => setIsExpanded(false)}
+                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-2 transition-colors"
+                    >
+                        <ChevronDown className="w-4 h-4" />
+                        <span>{finalSteps.length} steps</span>
+                    </button>
+
+                    {/* Timeline */}
+                    <div className="relative ml-2">
+                        {finalSteps.map((step, idx) => (
+                            <div key={step.stepNumber} className="relative flex gap-3 pb-4 last:pb-0">
+                                {/* Vertical line */}
+                                {idx < finalSteps.length - 1 && (
+                                    <div className="absolute left-[5px] top-4 bottom-0 w-px bg-border" />
+                                )}
+
+                                {/* Dot - hollow when incomplete, filled when complete */}
+                                <div className="relative z-10 mt-1 flex-shrink-0">
+                                    {step.isComplete ? (
+                                        <div className="w-2.5 h-2.5 rounded-full bg-foreground" />
+                                    ) : (
+                                        <motion.div
+                                            className="w-2.5 h-2.5 rounded-full border-2 border-foreground bg-background"
+                                            animate={{ opacity: [0.5, 1, 0.5] }}
+                                            transition={{ duration: 1.5, repeat: Infinity }}
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0 pt-0.5">
+                                    {/* Topic */}
+                                    <div className={cn(
+                                        "text-sm font-medium",
+                                        step.isComplete ? "text-foreground" : "text-muted-foreground"
+                                    )}>
+                                        {step.topic}
+                                    </div>
+
+                                    {/* Thoughts */}
+                                    {step.thoughts.length > 0 && (
+                                        <div className="mt-1 space-y-1">
+                                            {step.thoughts.map((thought, tidx) => (
+                                                <p
+                                                    key={tidx}
+                                                    className="text-xs text-muted-foreground leading-relaxed"
+                                                >
+                                                    {thought}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Loading indicator when processing */}
+                    {!isComplete && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="flex items-center gap-1.5 ml-7 mt-2"
+                        >
+                            <motion.span
+                                animate={{ opacity: [0.3, 1, 0.3] }}
+                                transition={{ repeat: Infinity, duration: 1.2, delay: 0 }}
+                                className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
+                            />
+                            <motion.span
+                                animate={{ opacity: [0.3, 1, 0.3] }}
+                                transition={{ repeat: Infinity, duration: 1.2, delay: 0.2 }}
+                                className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
+                            />
+                            <motion.span
+                                animate={{ opacity: [0.3, 1, 0.3] }}
+                                transition={{ repeat: Infinity, duration: 1.2, delay: 0.4 }}
+                                className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
+                            />
+                        </motion.div>
+                    )}
+                </div>
+            )}
+        </div>
+    )
 }
-

@@ -121,6 +121,11 @@ function chatStreamReducer(state: ChatStreamState, action: ChatStreamAction): Ch
                     agentName: thinkingData.agentName,
                     timestamp: Date.now(),
                     subItems: thinkingData.subItems,
+                    // Structured fields for grouped UI
+                    stepNumber: thinkingData.stepNumber,
+                    eventType: thinkingData.eventType,
+                    topic: thinkingData.topic,
+                    icon: thinkingData.icon,
                 }
                 return {
                     ...state,

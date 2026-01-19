@@ -42,18 +42,10 @@ export function MessageList({ messages, onArtifactClick }: MessageListProps) {
                             <div className="space-y-4">
                                 {/* Thinking stream - shows agent's reasoning */}
                                 {message.thinking && message.thinking.length > 0 && (
-                                    <details className="group">
-                                        <summary className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                                            <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
-                                            <span>Show {message.thinking.length} steps</span>
-                                        </summary>
-                                        <div className="mt-2 ml-6">
-                                            <ThinkingStream
-                                                thoughts={message.thinking}
-                                                isComplete={!message.isStreaming}
-                                            />
-                                        </div>
-                                    </details>
+                                    <ThinkingStream
+                                        thoughts={message.thinking}
+                                        isComplete={!message.isStreaming}
+                                    />
                                 )}
 
                                 {/* Error state */}

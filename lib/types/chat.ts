@@ -186,6 +186,11 @@ export interface ThinkingEventData {
     agentName: string
     content: string
     subItems?: string[]
+    // Structured fields for grouped UI rendering
+    stepNumber?: number
+    eventType?: "start" | "content" | "complete"
+    topic?: string
+    icon?: string
 }
 
 // Thinking item for the thinking stream
@@ -195,6 +200,11 @@ export interface ThinkingItem {
     agentName: string
     timestamp: number
     subItems?: string[]
+    // Structured fields for grouped UI rendering
+    stepNumber?: number
+    eventType?: "start" | "content" | "complete"
+    topic?: string
+    icon?: string
 }
 
 // Response mode determines how to display the response
