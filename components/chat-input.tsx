@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { MapContextModal, type MapContextData } from "./map-context-modal"
-import { FileUpload } from "./file-upload"
+import { FilePicker, type AttachedFilesContext } from "./file-picker"
 import { Badge } from "@/components/ui/badge"
 
 type AgentMode = "auto" | "fast" | "research" | "data-quality"
@@ -30,6 +30,9 @@ export function ChatInput({ onSubmit, isLoading, onCancel }: ChatInputProps) {
         e.preventDefault()
         if (!message.trim() || isLoading) return
 
+        // DEBUG: Log what we're sending
+        console.log('[ChatInput] Submitting with contextItems:', JSON.stringify(contextItems, null, 2))
+
         onSubmit({ message, mode, context: contextItems })
         setMessage("")
         setContextItems([])
@@ -40,10 +43,9 @@ export function ChatInput({ onSubmit, isLoading, onCancel }: ChatInputProps) {
         setShowMapDrawer(false)
     }
 
-    const addFileContext = (files: File[]) => {
-        files.forEach((file) => {
-            setContextItems((prev) => [...prev, { type: "file", data: file }])
-        })
+    const addFileContext = (fileContext: AttachedFilesContext) => {
+        console.log('[ChatInput] Adding file context:', JSON.stringify(fileContext, null, 2))
+        setContextItems((prev) => [...prev, { type: "attached_files", data: fileContext }])
         setShowFileUpload(false)
     }
 
@@ -75,6 +77,13 @@ export function ChatInput({ onSubmit, isLoading, onCancel }: ChatInputProps) {
                                             <MapIcon className="h-3 w-3" />
                                             {item.data.count} {item.data.layerName}
                                         </>
+                                    ) : item.type === "uploaded_files" ? (
+                                        <>
+                                            <Files className="h-3 w-3" />
+                                            {item.data.count} files
+                                            {item.data.files.filter((f: any) => f.fileType === 'las').length > 0 &&
+                                                ` (${item.data.files.filter((f: any) => f.fileType === 'las').length} LAS)`}
+                                        </>
                                     ) : (
                                         <>
                                             <Files className="h-3 w-3" />
@@ -105,8 +114,8 @@ export function ChatInput({ onSubmit, isLoading, onCancel }: ChatInputProps) {
                                     Map Area
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setShowFileUpload(true)}>
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Upload Files
+                                    <Files className="mr-2 h-4 w-4" />
+                                    Attach Files
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -174,8 +183,8 @@ export function ChatInput({ onSubmit, isLoading, onCancel }: ChatInputProps) {
             {/* Map Context Modal */}
             {showMapDrawer && <MapContextModal onClose={() => setShowMapDrawer(false)} onAddContext={addMapContext} />}
 
-            {/* File Upload Modal */}
-            {showFileUpload && <FileUpload onClose={() => setShowFileUpload(false)} onUpload={addFileContext} />}
+            {/* File Picker Modal */}
+            {showFileUpload && <FilePicker onClose={() => setShowFileUpload(false)} onFilesSelected={addFileContext} />}
         </>
     )
 }
