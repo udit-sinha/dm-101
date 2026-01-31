@@ -2,7 +2,7 @@
 
 import { ArtifactSummary } from '@/lib/types/chat'
 import { Card } from '@/components/ui/card'
-import { ChevronRight, FileText, BarChart3, Search, Database, Folder } from 'lucide-react'
+import { ChevronRight, FileText, BarChart3, Search, Database, Folder, Upload, FileSearch } from 'lucide-react'
 
 interface ArtifactCardProps {
     artifact: ArtifactSummary
@@ -20,6 +20,10 @@ function getArtifactIcon(kind: string) {
             return Database
         case 'entity-resolution':
             return Folder
+        case 'loading-plan':
+            return Upload
+        case 'extraction-report':
+            return FileSearch
         default:
             return FileText
     }
@@ -36,24 +40,24 @@ export function ArtifactCard({ artifact, onSelect }: ArtifactCardProps) {
 
     return (
         <Card
-            className="bg-white dark:bg-card border-border hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
+            className="group bg-white dark:bg-card border-border hover:border-primary/30 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer"
             onClick={() => onSelect?.(artifact)}
         >
             <button className="w-full px-4 py-3.5 text-left">
                 <div className="flex items-center gap-3">
                     {/* Icon */}
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center flex-shrink-0 transition-colors">
                         <Icon className="h-4.5 w-4.5 text-primary" />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                        <span className="font-medium text-sm block truncate">{artifact.title}</span>
+                        <span className="font-medium text-sm block truncate group-hover:text-primary transition-colors">{artifact.title}</span>
                         <span className="text-xs text-muted-foreground">{artifact.kind} • {createdDate}</span>
                     </div>
 
                     {/* Arrow */}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </div>
             </button>
         </Card>

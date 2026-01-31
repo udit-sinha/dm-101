@@ -24,6 +24,8 @@ export type ArtifactKind =
     | "data-quality"
     | "entity-resolution"
     | "goal-plan"
+    | "loading-plan"
+    | "extraction-report"
 
 export interface Source {
     title: string
@@ -73,12 +75,134 @@ export interface GoalPlanArtifactData {
     subGoals: SubGoalView[]
 }
 
+// =============================================================================
+// LOADING PLAN ARTIFACT (Well Ingestion)
+// =============================================================================
+
+export type WellActionType = 'link' | 'create' | 'review' | 'blocked'
+
+export interface WellEntry {
+    id: string
+    wellName: string
+    fileName: string
+    action: WellActionType
+    matchConfidence?: number       // % - for linked wells
+    qualityScore: number           // %
+    matchedWellId?: string         // ID of matched well (for link action)
+    matchedWellName?: string       // Name of matched well
+    issue?: string                 // Issue description (for review/blocked)
+    issueDetails?: string          // Detailed explanation
+    alternatives?: {               // For ambiguous matches
+        wellId: string
+        wellName: string
+        confidence: number
+    }[]
+    curves?: string[]              // Detected curves
+    depthRange?: { min: number; max: number }
+    selected?: boolean             // UI state for checkbox
+}
+
+export interface LoadingPlanArtifactData {
+    source: string                 // Filename or "Uploaded files"
+    markdownContent: string        // The agent-generated markdown summary
+
+    // Counts from backend
+    fileCount?: number
+    folderCount?: number
+    overallQuality?: number        // % overall data quality score
+    qualitySummary?: string
+    readyCount?: number
+    reviewCount?: number
+    blockedCount?: number
+    approvalStatus?: 'pending' | 'approved' | 'rejected' | 'partial'
+
+    // Optional: structured data for modal editor (populated client-side or from detailed endpoint)
+    readyWells?: WellEntry[]
+    reviewWells?: WellEntry[]
+    blockedFiles?: {
+        fileName: string
+        reason: string
+    }[]
+    curvesDetected?: string[]
+    avgCurvesPerFile?: number
+    depthRange?: { min: number; max: number }
+    approvedWellIds?: string[]
+}
+
+// =============================================================================
+// EXTRACTION REPORT ARTIFACT (Pre-Loading Analysis)
+// =============================================================================
+
+export type ExtractedEntryStatus = 'ok' | 'warning' | 'error'
+export type ExtractedLogStatus = 'matched' | 'unmatched' | 'error'
+
+export interface SourceLocation {
+    page: number
+    bbox: [number, number, number, number]  // x0, y0, x1, y1
+}
+
+export interface ExtractedWellEntry {
+    id: string
+    wellName: string
+    uwi?: string
+    operator?: string
+    sourceFile: string
+    sourcePage?: number
+    sourceLocations?: Record<string, SourceLocation>  // field -> location
+    status: ExtractedEntryStatus
+    issue?: string
+}
+
+export interface ExtractedTopEntry {
+    wellName: string
+    formation: string
+    md?: number
+    tvd?: number
+    sourceFile: string
+    sourcePage?: string
+}
+
+export interface ExtractedLogEntry {
+    fileName: string
+    wellName: string
+    curves: string[]
+    depthMin?: number
+    depthMax?: number
+    status: ExtractedLogStatus
+}
+
+export interface ExtractionReportArtifactData {
+    source: string                 // Zip filename or "Uploaded files"
+    markdownContent: string        // Summary markdown
+
+    // File statistics
+    pdfCount?: number
+    csvCount?: number
+    lasCount?: number
+    otherCount?: number
+
+    // Extraction results
+    wellsExtracted?: number
+    wellsNeedAttention?: number
+    topsExtracted?: number
+    logsExtracted?: number
+
+    // Structured data for editor
+    wellHeaders?: ExtractedWellEntry[]
+    wellTops?: ExtractedTopEntry[]
+    logHeaders?: ExtractedLogEntry[]
+
+    approvalStatus?: 'pending' | 'approved' | 'rejected'
+}
+
 export type ArtifactData =
     | AnalyticsArtifactData
     | ResearchArtifactData
     | DataQualityArtifactData
     | EntityResolutionArtifactData
     | GoalPlanArtifactData
+    | LoadingPlanArtifactData
+    | ExtractionReportArtifactData
 
 export interface ArtifactSummary {
     kind: ArtifactKind

@@ -1,12 +1,12 @@
 'use client'
 
-import type { ArtifactSummary, BlockComment, ArtifactFeedback } from '@/lib/types/chat'
+import type { ArtifactSummary, BlockComment, ArtifactFeedback, LoadingPlanArtifactData } from '@/lib/types/chat'
 import { ArtifactPanel } from './artifact-panel'
 import { BlockFeedbackPopover } from './block-feedback'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { X, Send, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { X, Send, ChevronDown, ChevronUp, Trash2, Layers, Pencil, Check } from 'lucide-react'
 import { useState, useCallback, useId, useEffect, useRef } from 'react'
 
 interface ArtifactFeedbackPanelProps {
@@ -14,6 +14,8 @@ interface ArtifactFeedbackPanelProps {
     onClose?: () => void
     onExport?: () => void
     onSubmitFeedback?: (feedback: ArtifactFeedback) => void
+    onLoadingPlanApprove?: (wellIds: string[]) => void
+    onLoadingPlanReject?: () => void
 }
 
 interface SelectedBlock {
@@ -28,6 +30,8 @@ export function ArtifactFeedbackPanel({
     onClose,
     onExport,
     onSubmitFeedback,
+    onLoadingPlanApprove,
+    onLoadingPlanReject,
 }: ArtifactFeedbackPanelProps) {
     const instanceId = useId()
     const contentRef = useRef<HTMLDivElement>(null)
@@ -39,8 +43,15 @@ export function ArtifactFeedbackPanel({
     const [showFeedbackPopover, setShowFeedbackPopover] = useState(false)
     const [commentsExpanded, setCommentsExpanded] = useState(true)
 
+    // Loading plan editor state
+    const [editorOpen, setEditorOpen] = useState(false)
+
     const commentCount = blockComments.size
     const hasComments = commentCount > 0 || generalComment.trim().length > 0
+
+    // Check if this is a loading plan artifact
+    const isLoadingPlan = artifact.kind === 'loading-plan'
+    const lpData = isLoadingPlan ? (artifact.data as LoadingPlanArtifactData) : null
 
     // Apply hover/click handlers to blocks (always enabled)
     useEffect(() => {
@@ -227,10 +238,66 @@ export function ArtifactFeedbackPanel({
 
     return (
         <div className="flex flex-col h-full">
-            {/* Single header with Artifact title, Submit Review, and X button */}
-            <div className="flex items-center justify-between px-4 py-2 border-b h-14 shrink-0">
-                <span className="font-semibold text-sm">Artifact</span>
+            {/* Single header with Artifact title, action buttons, and X button */}
+            <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50 h-14 shrink-0">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Layers className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="font-semibold text-sm">Artifact</span>
+                </div>
                 <div className="flex items-center gap-2">
+                    {/* Loading plan specific buttons */}
+                    {isLoadingPlan && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditorOpen(true)}
+                                className="h-8 text-xs"
+                            >
+                                <Pencil className="h-3 w-3 mr-1.5" />
+                                Review
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    // Approve all ready wells
+                                    const readyIds = lpData?.readyWells?.map(w => w.id) || []
+                                    onLoadingPlanApprove?.(readyIds)
+                                }}
+                                className="h-8 text-xs"
+                            >
+                                <Check className="h-3 w-3 mr-1.5" />
+                                Approve ({lpData?.readyCount ?? lpData?.readyWells?.length ?? 0})
+                            </Button>
+                        </>
+                    )}
+                    {/* Extraction/Ingestion report buttons */}
+                    {artifact.kind === 'extraction-report' && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditorOpen(true)}
+                                className="h-8 text-xs"
+                            >
+                                <Pencil className="h-3 w-3 mr-1.5" />
+                                Review
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    // Approve the extraction report - proceed to loading
+                                    onLoadingPlanApprove?.([])
+                                }}
+                                className="h-8 text-xs"
+                            >
+                                <Check className="h-3 w-3 mr-1.5" />
+                                Approve
+                            </Button>
+                        </>
+                    )}
                     {hasComments && (
                         <Button
                             size="sm"
@@ -255,7 +322,13 @@ export function ArtifactFeedbackPanel({
             {/* Content area - uses the ORIGINAL ArtifactPanel for proper styling */}
             <ScrollArea className="flex-1 min-h-0">
                 <div ref={contentRef} className="px-6 py-4 w-full">
-                    <ArtifactPanel artifact={artifact} />
+                    <ArtifactPanel
+                        artifact={artifact}
+                        openEditor={editorOpen}
+                        onEditorOpenChange={setEditorOpen}
+                        onLoadingPlanApprove={onLoadingPlanApprove}
+                        onLoadingPlanReject={onLoadingPlanReject}
+                    />
                 </div>
             </ScrollArea>
 

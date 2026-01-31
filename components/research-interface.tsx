@@ -77,6 +77,11 @@ export function ResearchInterface() {
         prevIsLoadingRef.current = state.isLoading
     }, [state.isLoading, fetchSessions])
 
+    // Reset artifact panel when conversation changes (switching chats or starting new)
+    useEffect(() => {
+        setSelectedArtifact(null)
+    }, [state.conversationId])
+
     const handleSubmit = async (data: { message: string; mode?: string; context?: any[] }) => {
         await sendMessage(
             data.message,
@@ -334,7 +339,7 @@ export function ResearchInterface() {
 
                             {/* Artifact Panel */}
                             <aside
-                                className="flex flex-col bg-background border-l transition-all duration-300 ease-in-out"
+                                className="flex flex-col bg-card border-l border-border shadow-lg transition-all duration-300 ease-in-out"
                                 style={{
                                     width: panelWidth,
                                     opacity: 1,

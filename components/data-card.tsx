@@ -58,40 +58,37 @@ export function DataCard({ title, children, className, onExport, onCopy, onExpan
     }
 
     return (
-        <Card ref={cardRef} className={`w-full overflow-hidden ${className || ''}`} data-data-card>
+        <Card ref={cardRef} className={`w-full overflow-hidden border-primary/20 bg-primary/[0.02] ${className || ''}`} data-data-card>
             {/* Header with title and actions */}
-            <CardHeader className="py-2 px-3 border-b bg-muted/30 flex-row items-center justify-between space-y-0">
-                <span className="text-xs font-medium text-muted-foreground">
-                    {title || 'Data'}
-                </span>
+            <CardHeader className="py-2 px-3 border-b border-border bg-muted/50 flex-row items-center justify-end space-y-0">
                 <div className="flex items-center gap-1">
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-6 w-6 hover:bg-secondary/50 transition-colors rounded-md"
                         onClick={handleCopy}
                         title="Copy to clipboard"
                     >
-                        <Copy className="h-3 w-3" />
+                        <Copy className="h-3 w-3 text-muted-foreground" />
                     </Button>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-6 w-6 hover:bg-secondary/50 transition-colors rounded-md"
                         onClick={handleExport}
                         title="Export as CSV"
                     >
-                        <Download className="h-3 w-3" />
+                        <Download className="h-3 w-3 text-muted-foreground" />
                     </Button>
                     {onExpand && (
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6"
+                            className="h-6 w-6 hover:bg-secondary/50 transition-colors rounded-md"
                             onClick={onExpand}
                             title="Expand"
                         >
-                            <Maximize2 className="h-3 w-3" />
+                            <Maximize2 className="h-3 w-3 text-muted-foreground" />
                         </Button>
                     )}
                 </div>
@@ -112,7 +109,7 @@ export function DataTable({ className, ...props }: React.HTMLAttributes<HTMLTabl
 }
 
 export function DataTableHeader({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-    return <TableHeader className={`bg-muted/50 sticky top-0 ${className || ''}`} {...props} />
+    return <TableHeader className={`bg-muted/30 sticky top-0 ${className || ''}`} {...props} />
 }
 
 export function DataTableBody(props: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -120,13 +117,13 @@ export function DataTableBody(props: React.HTMLAttributes<HTMLTableSectionElemen
 }
 
 export function DataTableRow({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
-    return <TableRow className={`hover:bg-muted/30 ${className || ''}`} {...props} />
+    return <TableRow className={`border-primary/10 hover:bg-primary/[0.04] transition-colors ${className || ''}`} {...props} />
 }
 
 export function DataTableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-    return <TableHead className={`text-xs font-medium text-muted-foreground whitespace-nowrap px-3 py-2 h-8 ${className || ''}`} {...props} />
+    return <TableHead className={`text-xs font-semibold text-foreground whitespace-nowrap px-3 py-2 h-8 ${className || ''}`} {...props} />
 }
 
 export function DataTableCell({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-    return <TableCell className={`text-xs px-3 py-2 whitespace-nowrap ${className || ''}`} {...props} />
+    return <TableCell className={`text-xs text-muted-foreground px-3 py-2 whitespace-nowrap ${className || ''}`} {...props} />
 }

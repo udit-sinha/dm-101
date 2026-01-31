@@ -91,22 +91,30 @@ export function ThinkingStream({ thoughts, isComplete, className }: ThinkingStre
                 >
                     {!isComplete && activeStep ? (
                         <div className="space-y-1.5">
-                            {/* Chevron + Spinner + Heading */}
-                            <div className="flex gap-2.5 items-start">
-                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                                <motion.span
-                                    className="w-3 h-3 rounded-full border-2 border-muted-foreground/50 bg-background flex-shrink-0 mt-1"
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                />
-                                <div className="text-sm font-medium text-muted-foreground flex-1 pt-0.5">
+                            {/* Heading with Shimmer Fade + Chevron Right */}
+                            <div className="flex justify-between items-center gap-2">
+                                <motion.div
+                                    className="text-sm font-medium bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground via-muted-foreground/80 to-foreground"
+                                    animate={{
+                                        backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                                    }}
+                                    transition={{
+                                        duration: 4,
+                                        repeat: Infinity,
+                                        ease: "linear"
+                                    }}
+                                    style={{
+                                        backgroundSize: "200% auto",
+                                    }}
+                                >
                                     {activeStep.topic}
-                                </div>
+                                </motion.div>
+                                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                             </div>
 
-                            {/* Tail - last 4 thought lines */}
+                            {/* Tail - last 4 thought lines (aligned with heading) */}
                             {tailLines.length > 0 && (
-                                <div className="ml-9 space-y-0.5 text-xs text-muted-foreground/70">
+                                <div className="space-y-0.5 text-xs text-muted-foreground/70">
                                     {tailLines.map((line, idx) => (
                                         <p key={idx} className="truncate leading-relaxed">{line}</p>
                                     ))}
@@ -114,9 +122,9 @@ export function ThinkingStream({ thoughts, isComplete, className }: ThinkingStre
                             )}
                         </div>
                     ) : (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+                        <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
                             <span>{finalSteps.length} steps completed</span>
+                            <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
                         </div>
                     )}
                 </div>
@@ -128,10 +136,10 @@ export function ThinkingStream({ thoughts, isComplete, className }: ThinkingStre
                     {/* Header with collapse toggle */}
                     <button
                         onClick={() => setIsExpanded(false)}
-                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-2 transition-colors"
+                        className="w-full flex items-center justify-between gap-2 text-xs text-muted-foreground hover:text-foreground mb-4 transition-colors p-1 rounded-sm hover:bg-muted/50"
                     >
-                        <ChevronDown className="w-4 h-4" />
-                        <span>{finalSteps.length} steps</span>
+                        <span>Thinking Process</span>
+                        <ChevronRight className="w-3.5 h-3.5 rotate-[270deg]" />
                     </button>
 
                     {/* Timeline */}

@@ -1,6 +1,6 @@
 'use client'
 
-import type { ArtifactSummary, AnalyticsArtifactData, ResearchArtifactData, DataQualityArtifactData, EntityResolutionArtifactData } from '@/lib/types/chat'
+import type { ArtifactSummary, AnalyticsArtifactData, ResearchArtifactData, DataQualityArtifactData, EntityResolutionArtifactData, LoadingPlanArtifactData, ExtractionReportArtifactData } from '@/lib/types/chat'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,22 +12,41 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { DataCard } from './data-card'
-import { Copy, Building2, MapPin } from 'lucide-react'
+import { Copy, Building2, MapPin, Table as TableIcon, Code, Database, FileText, Pencil, Check, X, FileSearch, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Separator } from '@/components/ui/separator'
+import { LoadingPlanEditor } from './loading-plan-editor'
+import { ExtractionReportEditor } from './extraction-report-editor'
 
 interface ArtifactPanelProps {
     artifact: ArtifactSummary
     onClose?: () => void
     onExport?: () => void
+    // Loading plan specific props - allow external control
+    openEditor?: boolean
+    onEditorOpenChange?: (open: boolean) => void
+    onLoadingPlanApprove?: (wellIds: string[]) => void
+    onLoadingPlanReject?: () => void
 }
 
 
 
-export function ArtifactPanel({ artifact, onClose, onExport }: ArtifactPanelProps) {
+export function ArtifactPanel({
+    artifact,
+    onClose,
+    onExport,
+    openEditor,
+    onEditorOpenChange,
+    onLoadingPlanApprove,
+    onLoadingPlanReject
+}: ArtifactPanelProps) {
     const [copied, setCopied] = useState(false)
+    // Use external control if provided, otherwise internal state
+    const [internalEditorOpen, setInternalEditorOpen] = useState(false)
+    const editorOpen = openEditor ?? internalEditorOpen
+    const setEditorOpen = onEditorOpenChange ?? setInternalEditorOpen
 
     const copyToClipboard = () => {
         const text = JSON.stringify(artifact.data, null, 2)
@@ -46,17 +65,17 @@ export function ArtifactPanel({ artifact, onClose, onExport }: ArtifactPanelProp
             </div>
         ),
         thead: ({ node, ...props }: any) => (
-            <TableHeader className="bg-muted/50 sticky top-0" {...props} />
+            <TableHeader className="bg-muted/30 sticky top-0" {...props} />
         ),
         tbody: ({ node, ...props }: any) => <TableBody {...props} />,
         tr: ({ node, ...props }: any) => (
-            <TableRow className="hover:bg-muted/30" {...props} />
+            <TableRow className="border-primary/10 hover:bg-primary/[0.04] transition-colors" {...props} />
         ),
         th: ({ node, ...props }: any) => (
-            <TableHead className="text-xs font-medium text-muted-foreground whitespace-nowrap px-3 py-2 h-8" {...props} />
+            <TableHead className="text-xs font-semibold text-foreground whitespace-nowrap px-3 py-2 h-8" {...props} />
         ),
         td: ({ node, ...props }: any) => (
-            <TableCell className="text-xs px-3 py-2 whitespace-nowrap" {...props} />
+            <TableCell className="text-xs text-muted-foreground px-3 py-2 whitespace-nowrap" {...props} />
         ),
     }
 
@@ -75,8 +94,11 @@ export function ArtifactPanel({ artifact, onClose, onExport }: ArtifactPanelProp
 
                         {/* Data with table */}
                         <div>
-                            <h4 className="text-sm font-semibold text-foreground mb-3">Data</h4>
-                            <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                            <div className="flex items-center gap-2 mb-3">
+                                <TableIcon className="h-4 w-4 text-primary" />
+                                <h4 className="text-sm font-semibold text-foreground">Data</h4>
+                            </div>
+                            <div className="text-sm prose prose-sm max-w-none dark:prose-invert border-l-2 border-primary/20 pl-4">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm]}
                                     components={tableComponents}
@@ -89,8 +111,11 @@ export function ArtifactPanel({ artifact, onClose, onExport }: ArtifactPanelProp
                         {/* Code block */}
                         {analyticsData.code && (
                             <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">SQL Query</h4>
-                                <div className="border rounded-lg bg-muted/30 overflow-hidden">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Code className="h-4 w-4 text-primary" />
+                                    <h4 className="text-sm font-semibold text-foreground">SQL Query</h4>
+                                </div>
+                                <div className="border rounded-lg bg-muted/30 overflow-hidden border-l-2 border-primary/20">
                                     <div className="overflow-x-auto">
                                         <pre className="p-3 text-xs font-mono">
                                             <code>{analyticsData.code}</code>
@@ -103,8 +128,11 @@ export function ArtifactPanel({ artifact, onClose, onExport }: ArtifactPanelProp
                         {/* Datasets */}
                         {analyticsData.datasetsUsed && analyticsData.datasetsUsed.length > 0 && (
                             <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Datasets Used</h4>
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Database className="h-4 w-4 text-primary" />
+                                    <h4 className="text-sm font-semibold text-foreground">Datasets Used</h4>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 border-l-2 border-primary/20 pl-4">
                                     {analyticsData.datasetsUsed.map((ds) => (
                                         <Badge key={ds} variant="secondary" className="text-xs">
                                             {ds}
@@ -242,6 +270,85 @@ export function ArtifactPanel({ artifact, onClose, onExport }: ArtifactPanelProp
                                 ))}
                             </div>
                         </div>
+                    </div>
+                )
+            }
+
+            case 'loading-plan': {
+                const lpData = data as LoadingPlanArtifactData
+                return (
+                    <div className="space-y-5">
+                        {/* Render the markdown content - this is the flexible, agent-generated summary */}
+                        <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    ...tableComponents,
+                                    h1: ({ node, ...props }) => <h2 className="text-base font-semibold text-foreground mt-6 mb-3" {...props} />,
+                                    h2: ({ node, ...props }) => <h3 className="text-base font-semibold text-foreground mt-6 mb-3" {...props} />,
+                                    h3: ({ node, ...props }) => <h4 className="text-sm font-semibold text-foreground mt-5 mb-2" {...props} />,
+                                    p: ({ node, ...props }) => <p className="text-muted-foreground mb-3 text-sm leading-relaxed" {...props} />,
+                                    strong: ({ node, ...props }) => <span className="font-semibold text-foreground" {...props} />,
+                                    li: ({ node, ...props }) => <li className="text-muted-foreground leading-relaxed" {...props} />,
+                                }}
+                            >
+                                {lpData.markdownContent}
+                            </ReactMarkdown>
+                        </div>
+
+                        {/* Editor modal - triggered from header buttons */}
+                        <LoadingPlanEditor
+                            data={lpData}
+                            open={editorOpen}
+                            onOpenChange={setEditorOpen}
+                            onApprove={(ids) => {
+                                setEditorOpen(false)
+                                onLoadingPlanApprove?.(ids)
+                            }}
+                            onReject={() => {
+                                setEditorOpen(false)
+                                onLoadingPlanReject?.()
+                            }}
+                        />
+                    </div>
+                )
+            }
+
+            case 'extraction-report': {
+                const erData = data as ExtractionReportArtifactData
+                return (
+                    <div className="space-y-5">
+                        {/* Markdown content with styled tables */}
+                        <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    ...tableComponents,
+                                    h1: ({ node, ...props }) => <h2 className="text-base font-semibold text-foreground mt-6 mb-3" {...props} />,
+                                    h2: ({ node, ...props }) => <h3 className="text-base font-semibold text-foreground mt-6 mb-3" {...props} />,
+                                    h3: ({ node, ...props }) => <h4 className="text-sm font-semibold text-foreground mt-5 mb-2" {...props} />,
+                                    p: ({ node, ...props }) => <p className="text-muted-foreground mb-3 text-sm leading-relaxed" {...props} />,
+                                    strong: ({ node, ...props }) => <span className="font-semibold text-foreground" {...props} />,
+                                    li: ({ node, ...props }) => <li className="text-muted-foreground leading-relaxed" {...props} />,
+                                }}
+                            >
+                                {erData.markdownContent}
+                            </ReactMarkdown>
+                        </div>
+
+                        {/* Editor modal */}
+                        <ExtractionReportEditor
+                            data={erData}
+                            open={editorOpen}
+                            onOpenChange={setEditorOpen}
+                            onApprove={() => {
+                                setEditorOpen(false)
+                                // Proceed to loading phase
+                            }}
+                            onReject={() => {
+                                setEditorOpen(false)
+                            }}
+                        />
                     </div>
                 )
             }
